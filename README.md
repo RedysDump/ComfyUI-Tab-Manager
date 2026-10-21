@@ -2,7 +2,7 @@
 
 **Organize your open ComfyUI workflow tabs directly in the top tab bar.** Create color-coded groups and nested subgroups, collapse groups, and move workflows between groups without changing your workflow files.
 
-**Version:** 1.0.0  
+**Version:** 1.0.1  
 **Type:** Frontend extension for ComfyUI  
 **Dependencies:** None beyond ComfyUI
 
