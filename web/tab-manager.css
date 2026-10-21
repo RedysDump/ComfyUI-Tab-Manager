@@ -1,0 +1,175 @@
+/* ComfyUI Tab Manager — isolated frontend stylesheet. */
+.workflow-tabs-container.ctm-ready { position: relative; min-width: 0; }
+.workflow-tabs-container.ctm-ready > .ctm-native-host { display: none !important; }
+.workflow-tabs-container.ctm-ready > .ctm-bar {
+  display: flex; flex: 1 1 auto; min-width: 60px; align-items: center; gap: 6px;
+  height: 100%; overflow: hidden; padding: 0 3px; box-sizing: border-box;
+}
+.ctm-bar > .ctm-items {
+  display: flex; flex: 1 1 auto; min-width: 0; height: 100%; align-items: center;
+  overflow-x: auto; overflow-y: hidden; gap: 4px; scrollbar-width: thin;
+  scrollbar-color: #7776 transparent;
+}
+.ctm-bar > .ctm-new-group { order: -1; }
+
+.ctm-bar button { font: inherit; cursor: pointer; color: inherit; }
+.ctm-bar button:focus-visible, .ctm-popover button:focus-visible, .ctm-popover input:focus-visible { outline: 2px solid #9c93ff; outline-offset: 1px; }
+.ctm-group { display: flex; align-items: center; flex-shrink: 0; gap: 4px; min-width: 0; }
+.ctm-group-label {
+  display: inline-flex; align-items: center; gap: 6px; height: 31px; flex-shrink: 0;
+  padding: 0 9px; border-radius: 9px; border: 1px solid color-mix(in srgb,var(--ctm-color) 58%,transparent);
+  color: var(--ctm-color) !important; background: color-mix(in srgb,var(--ctm-color) 13%,transparent);
+  font-size: 12px !important; font-weight: 650 !important; white-space: nowrap;
+  transition: background .13s, box-shadow .13s;
+}
+.ctm-group-label:hover, .ctm-group-label.ctm-drag-over { background: color-mix(in srgb,var(--ctm-color) 26%,transparent); box-shadow: inset 0 0 0 1px var(--ctm-color); }
+.ctm-group-label.ctm-active { box-shadow: inset 0 -2px 0 var(--ctm-color); }
+.ctm-folder { font-size: 14px; line-height: 1; }
+.ctm-count { font-size: 10px; opacity: .74; }
+.ctm-caret { font-size: 11px; opacity: .8; }
+.ctm-tab { display: flex; height: 31px; align-items: center; flex-shrink: 0; min-width: 78px; max-width: 188px;
+  border-radius: 8px; border: 1px solid transparent; background: var(--ctm-tab-bg, rgba(120,120,120,.12));
+  color: var(--text-primary,inherit); overflow: hidden;
+}
+.ctm-tab:hover { background: var(--ctm-tab-hover, rgba(120,120,120,.23)); }
+.ctm-tab.ctm-selected { background: color-mix(in srgb,var(--ctm-accent,#a18eff) 19%,var(--comfy-menu-bg,#242424)); border-color: color-mix(in srgb,var(--ctm-accent,#a18eff) 55%,transparent); }
+.ctm-tab.ctm-drag-over { border-color: #c6b3ff; }
+.ctm-tab-main { min-width: 0; flex: 1 1 auto; padding: 0 5px 0 10px; height: 100%;
+  border: 0; background: transparent; text-align: left; font-size: 12px !important;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.ctm-dirty { display: inline-block; margin-left: 5px; color: #f5b963; }
+.ctm-tab-close { opacity: 0; border: 0; background: transparent; padding: 0 7px 0 3px; height: 100%; font-size: 16px !important; }
+.ctm-tab:hover .ctm-tab-close,.ctm-selected .ctm-tab-close,.ctm-tab:focus-within .ctm-tab-close { opacity: .8; }
+.ctm-tab-close:hover { opacity: 1 !important; color: #ff9a9a !important; }
+.ctm-new-group { display: inline-flex; align-items: center; justify-content: center; gap: 3px;
+  flex-shrink: 0; height: 29px; padding: 0 9px; font-size: 12px !important;
+  border: 1px dashed #8e8291 !important; border-radius: 9px; background: transparent;
+  opacity: .84; white-space: nowrap;
+}
+.ctm-new-group:hover { opacity: 1; background: #7773; }
+.ctm-ungrouped { display: flex; align-items: center; flex-shrink: 0; gap: 4px; }
+.ctm-ungrouped-title { font-size: 11px; opacity: .65; padding: 0 7px; border-radius: 7px; height: 30px;
+  display: flex; align-items: center; white-space: nowrap; border: 1px dashed transparent; }
+.ctm-ungrouped-title.ctm-drag-over { border-color: #af9bff; background: #af9bff22; opacity: 1; }
+.ctm-popover { position: fixed; z-index: 100000; box-sizing: border-box; width: 280px; max-width: calc(100vw - 16px);
+  background: var(--comfy-menu-bg,#23232b); color: var(--text-primary,#eee);
+  border: 1px solid #7776; border-radius: 12px; box-shadow: 0 10px 34px #0009;
+  padding: 13px; font-size: 13px; font-family: Inter,system-ui,sans-serif;
+}
+.ctm-popover * { box-sizing: border-box; }
+.ctm-popover h3 { font-weight: 650; margin: 0 0 10px; font-size: 13px; }
+.ctm-popover label { display: block; margin: 6px 0; opacity: .85; font-size: 11px; }
+.ctm-popover input[type="text"] { display: block; width: 100%; height: 33px;
+  background: #8882; color: inherit; border: 1px solid #aaa5; border-radius: 6px; padding: 6px 8px; }
+.ctm-palette { display: flex; flex-wrap: wrap; gap: 7px; margin: 11px 0; }
+.ctm-swatch { width: 25px; height: 25px; border: 1px solid #aaa4; border-radius: 50%; padding: 0; flex-shrink: 0; }
+.ctm-swatch.ctm-picked { box-shadow: 0 0 0 2px #eee,0 0 0 4px #777; }
+.ctm-popover-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 11px; }
+.ctm-popover .ctm-action { border: 1px solid #9995; border-radius: 7px; background: #aaa2;
+  padding: 7px 10px; font-size: 12px; }
+.ctm-popover .ctm-primary { background: #6455ac; border-color: #9a84ea; color: #fff; }
+.ctm-popover .ctm-danger { color: #ff9d9d; margin-right: auto; }
+.ctm-popover .ctm-choice { width: 100%; text-align: left; display: flex; align-items: center; gap: 9px;
+  border: 0; border-radius: 7px; padding: 8px 7px; background: transparent; color: inherit; font-size: 12px; }
+.ctm-popover .ctm-choice:hover { background: #aaa3; }
+.ctm-popover .ctm-mini-dot { display:inline-block; width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.ctm-popover .ctm-hint { font-size: 11px; opacity: .65; margin: 5px 0; }
+
+.ctm-popover .ctm-custom-color-label { display:flex; align-items:center; gap:12px; margin:8px 0; }
+.ctm-popover .ctm-color-picker { cursor:pointer; width:50px; height:32px; padding:2px; border:1px solid #aaa5; border-radius:6px; background:transparent; }
+
+/* Nesting and rearranging the native open-workflow tabs. */
+.ctm-group-label { cursor: grab !important; user-select: none; }
+.ctm-group-label:active { cursor: grabbing !important; }
+.ctm-group-label.ctm-drop-before,
+.ctm-group-label.ctm-drop-after,
+.ctm-group-label.ctm-drop-inside { position: relative; }
+.ctm-group-label.ctm-drop-before { box-shadow: -4px 0 0 0 #d4c5ff, inset 0 0 0 1px var(--ctm-color) !important; }
+.ctm-group-label.ctm-drop-after { box-shadow: 4px 0 0 0 #d4c5ff, inset 0 0 0 1px var(--ctm-color) !important; }
+.ctm-group-label.ctm-drop-inside { background: color-mix(in srgb, var(--ctm-color) 38%, #20202a) !important; box-shadow: inset 0 0 0 2px var(--ctm-color) !important; }
+.ctm-subgroups {
+  display: flex; align-items: center; flex-shrink: 0; gap: 4px;
+  padding: 1px 3px 1px 8px; margin-left: 3px;
+  border-left: 2px solid color-mix(in srgb, var(--ctm-parent-color) 65%, transparent);
+  border-radius: 4px; background: color-mix(in srgb, var(--ctm-parent-color) 4%, transparent);
+}
+.ctm-subgroup .ctm-group-label { height: 27px; font-size: 11px !important; }
+.ctm-group-tools { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.ctm-popover .ctm-group-tools .ctm-action { flex: 1 1 auto; }
+.ctm-bar .ctm-root-drop {
+  display: none; height: 29px; flex-shrink: 0; align-items: center; padding: 0 9px;
+  border: 1px dashed #9e91d4; border-radius: 8px; white-space: nowrap;
+  font-size: 11px; color: #cab8ff; background: #937bd916;
+}
+.ctm-bar.ctm-group-dragging .ctm-root-drop { display: flex; }
+.ctm-bar .ctm-root-drop.ctm-drag-over { background: #9985ff55; border-color: #c8b6ff; }
+/* Show the return-to-root target without shifting the dragged tab under the pointer. */
+.ctm-bar { position: relative; }
+.ctm-bar .ctm-root-drop { position: fixed; top: 48px; left: 85px; z-index: 100001; box-shadow: 0 4px 12px #0008; }
+
+/* An optional custom + Group color; the uncolored button keeps its original appearance. */
+.ctm-new-group.ctm-colored {
+  color: var(--ctm-create-color) !important;
+  border-color: color-mix(in srgb, var(--ctm-create-color) 73%, transparent) !important;
+  background: color-mix(in srgb, var(--ctm-create-color) 14%, transparent);
+  opacity: 1;
+}
+.ctm-new-group.ctm-colored:hover {
+  background: color-mix(in srgb, var(--ctm-create-color) 28%, transparent);
+  box-shadow: inset 0 0 0 1px var(--ctm-create-color);
+}
+
+/* Keep long group names and workflow names inside the tab bar. */
+.ctm-group-label { max-width: min(255px, 55vw); min-width: 0; }
+.ctm-group-label .ctm-folder,
+.ctm-group-label .ctm-count,
+.ctm-group-label .ctm-caret { flex-shrink: 0; }
+.ctm-group-label .ctm-group-name {
+  display: block; min-width: 0; max-width: 185px;
+  flex: 0 1 auto; overflow: hidden;
+  white-space: nowrap; text-overflow: ellipsis;
+}
+.ctm-tab { max-width: min(188px, 50vw); }
+.ctm-tab-main { text-overflow: ellipsis; }
+.ctm-tab-group-button {
+  flex: 0 0 auto; height: 100%; width: 22px;
+  border: 0; border-radius: 6px; background: transparent;
+  color: var(--ctm-accent, #a18eff) !important;
+  font-size: 14px !important; opacity: .67; padding: 0;
+}
+.ctm-tab-group-button:hover, .ctm-tab-group-button:focus-visible {
+  opacity: 1; background: color-mix(in srgb, var(--ctm-accent, #a18eff) 25%, transparent);
+}
+.ctm-tab:focus-within .ctm-tab-group-button { opacity: 1; }
+.ctm-popover-header {
+  display: flex; align-items: flex-start; gap: 8px; min-width: 0;
+  margin: 0 0 10px;
+}
+.ctm-popover .ctm-popover-header .ctm-popover-title {
+  flex: 1 1 auto; min-width: 0; max-width: 100%;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  line-height: 24px; margin: 0; font-weight: 650;
+}
+.ctm-popover .ctm-popover-dismiss {
+  display: flex; flex: 0 0 25px; justify-content: center; align-items: center;
+  width: 25px; height: 25px; padding: 0;
+  border-radius: 6px; background: transparent; border: 1px solid transparent;
+  font-size: 21px !important; line-height: 1;
+  color: var(--text-primary, #eee);
+}
+.ctm-popover .ctm-popover-dismiss:hover { background: #8883; border-color: #8886; }
+.ctm-popover .ctm-native-actions {
+  width: 100%; margin-top: 8px; text-align: left;
+}
+.ctm-popover .ctm-action.ctm-close-tab {
+  background: #84252540; border: 1px solid #e45b5b;
+  color: #ff8e8e !important; font-weight: 700;
+}
+.ctm-popover .ctm-action.ctm-close-tab:hover {
+  background: #b52a2a70; border-color: #ff8888; color: #fff !important;
+}
+
+/* Native workflow context menus are portaled outside the custom tab bar.
+   Hide unsafe close/mass-close commands even if Reka UI appends them later. */
+[data-ctm-blocked-close="true"] { display: none !important; pointer-events: none !important; }

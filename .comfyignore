@@ -1,0 +1,8 @@
+
+# Only exclude development or local-only files from Registry builds.
+.vscode/
+.idea/
+__pycache__/
+*.py[cod]
+.DS_Store
+Thumbs.db
