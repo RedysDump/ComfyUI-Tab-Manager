@@ -27,3 +27,4 @@ All notable changes to ComfyUI Tab Manager are documented here.
 - Add a dedicated Move to Group icon on workflow tabs, plus Shift+right-click access.
 - Add a safe menu-dismiss X button and style Close Tab as a red action.
 - Truncate long group/workflow names visually, while keeping full titles in tooltips.
+
