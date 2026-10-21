@@ -1,0 +1,18 @@
+[project]
+name = "comfyui-tab-manager"
+version = "1.0.0"
+description = "Color-coded and nested groups for open ComfyUI workflow tabs."
+license = { file = "LICENSE" }
+dependencies = []
+classifiers = [
+    "Operating System :: OS Independent",
+    "License :: OSI Approved :: MIT License",
+]
+
+[project.urls]
+Repository = "https://github.com/RedysDump/ComfyUI-Tab-Manager"
+"Bug Tracker" = "https://github.com/RedysDump/ComfyUI-Tab-Manager/issues"
+
+[tool.comfy]
+PublisherId = "YOUR_REGISTRY_PUBLISHER_ID"
+DisplayName = "ComfyUI Tab Manager"
