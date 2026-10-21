@@ -1,6 +1,15 @@
 # ComfyUI Tab Manager
 
+<img width="1672" height="941" alt="Picture" src="https://github.com/user-attachments/assets/ed9b1f8e-fecc-4043-9fb4-0a860fff91ef" />
+
+
 **Organize your open ComfyUI workflow tabs directly in the top tab bar.** Create color-coded groups and nested subgroups, collapse groups, and move workflows between groups without changing your workflow files.
+
+
+https://github.com/user-attachments/assets/cbbdbf18-35fa-4bd3-9bd3-ff8c88685d30
+
+
+
 
 **Version:** 1.0.1  
 **Type:** Frontend extension for ComfyUI  
