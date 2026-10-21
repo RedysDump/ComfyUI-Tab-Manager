@@ -14,5 +14,6 @@ Repository = "https://github.com/RedysDump/ComfyUI-Tab-Manager"
 "Bug Tracker" = "https://github.com/RedysDump/ComfyUI-Tab-Manager/issues"
 
 [tool.comfy]
-PublisherId = "YOUR_REGISTRY_PUBLISHER_ID"
+PublisherId = "redysdump"
 DisplayName = "ComfyUI Tab Manager"
+
