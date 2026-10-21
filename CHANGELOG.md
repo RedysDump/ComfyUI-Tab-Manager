@@ -2,6 +2,14 @@
 
 All notable changes to ComfyUI Tab Manager are documented here.
 
+## [1.0.1] - 2026-10-21
+
+### Visual Update
+
+- Added a custom icon for the Comfy Registry listing.
+- Updated package metadata to reference the new icon.
+- No changes to existing functionality.
+
 ## [1.0.0] - 2026-10-21
 
 ### Initial public release
