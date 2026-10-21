@@ -16,4 +16,5 @@ Repository = "https://github.com/RedysDump/ComfyUI-Tab-Manager"
 [tool.comfy]
 PublisherId = "redysdump"
 DisplayName = "ComfyUI Tab Manager"
+Icon = "https://raw.githubusercontent.com/RedysDump/ComfyUI-Tab-Manager/main/icon.png"
 
