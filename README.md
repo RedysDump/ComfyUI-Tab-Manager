@@ -11,7 +11,7 @@ https://github.com/user-attachments/assets/cbbdbf18-35fa-4bd3-9bd3-ff8c88685d30
 
 
 
-**Version:** 1.0.1  
+**Version:** 1.1.0  
 **Type:** Frontend extension for ComfyUI  
 **Dependencies:** None beyond ComfyUI
 
@@ -33,7 +33,7 @@ https://github.com/user-attachments/assets/cbbdbf18-35fa-4bd3-9bd3-ff8c88685d30
 
 ## Compatibility
 
-ComfyUI Tab Manager targets the **top workflow tab bar** of the modern ComfyUI frontend. It has been confirmed working with **ComfyUI Frontend 1.55.14**. Other frontend versions may change the tab bar structure and are not yet guaranteed to be compatible.
+ComfyUI Tab Manager targets the **top workflow tab bar** of the modern ComfyUI frontend. It has been confirmed working with **ComfyUI Frontend 1.55.14**, and version 1.1.0 adds support for the newer tab bar layout (ComfyUI Frontend builds after the "Replace WorkflowTabs SelectButton with Tabs" rewrite), where workflow paths are read from the official extension API instead of the DOM. Other frontend versions may change the tab bar structure and are not yet guaranteed to be compatible. If tab paths cannot be resolved, the extension stays out of the way and keeps ComfyUI's original tab bar visible.
 
 The extension does not add image-processing nodes and does not require Python packages beyond ComfyUI. It is independent of your GPU and image-generation model.
 
@@ -111,7 +111,7 @@ The extension recognizes the local settings created by previous builds and impor
 - **No + Group button:** Make sure ComfyUI is using the top tab bar, not the sidebar workflow view. Restart ComfyUI and use **Ctrl+F5**.
 - **Old and new bars are conflicting:** Remove any previously installed version of the extension with a different folder name.
 - **Missing groups:** Make sure you are accessing ComfyUI using the same browser profile, host, and port as before.
-- **Need diagnostic information:** Open Developer Tools → Console and run `window.__comfyTabManagerDebug()`.
+- **Need diagnostic information:** Open Developer Tools → Console and run `window.__comfyTabManagerDebug()`. Check `detectionMode` in the result: `legacy` (paths read from the DOM) or `store` (paths read from the workflow store) means the tab bar is supported; `filename-only` means the workflow store was unavailable and tabs are identified by name only.
 - **Uninstall:** Stop ComfyUI, remove the `ComfyUI-Tab-Manager` directory from `custom_nodes`, restart, and refresh the browser. Native tabs are restored.
 
 ## Development
