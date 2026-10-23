@@ -80,7 +80,7 @@ If you've installed an older version under a different folder name (such as `Com
 | Move a subgroup to the main bar | Group menu → **Top Level** |
 | Move a workflow to another group | Hover over its tab → **⋯** → choose a group |
 | Edit a workflow tab's appearance | Workflow tab menu → **Customize Tab** |
-| Open the global Customize Themes | Settings gear → **Customize Theme** |
+| Open the global Customize Themes | Settings gear → **Customize Themes** |
 | Apply a theme | Choose whether to style tabs, groups or both |
 | Save or load a custom theme | Customize Themes → **Save as JSON Preset** / **Import JSON** |
 | Export/import your layout | Settings gear → **Layout Storage & Backup** |
