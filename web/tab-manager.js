@@ -11,10 +11,10 @@ if (!document.querySelector('link[data-ctm-styles]')) {
 }
 
 /**
- * ComfyUI Tab Manager v1.1.0
+ * ComfyUI Tab Manager v1.1.1
  * Scope: *open* workflow tabs in the TOP bar. Group layout is stored separately in the ComfyUI user directory.
- * Reads actual rendered workflow tabs from the ComfyUI top bar v1.55.14, then forwards
- * native click, close, and contextmenu events (preserving standard ComfyUI actions).
+ * Supports both the legacy workflow tab DOM (Frontend 1.55.x) and the newer
+ * Reka UI tabs (Frontend 1.59.x), with native actions kept intact.
  */
 (() => {
   const ID = 'ComfyUI Tab Manager';
@@ -23,7 +23,9 @@ if (!document.querySelector('link[data-ctm-styles]')) {
   const BACKUP_STORAGE = 'ComfyUI.TabManager.LegacyBackup.v1';
   const COLORS = ['#a593ff', '#ff779a', '#faac55', '#ffe178', '#62d6b2', '#6aaeff', '#df91e8', '#ff6969', '#a8b0c2', '#ff4fc5', '#46d5ee', '#81db5a', '#ff8d56', '#d0a4ff', '#dbd85b', '#ffffff'];
   const SELECTOR = '.workflow-tabs-container';
-  const VERSION = '1.1.0';
+  const VERSION = '1.1.1';
+  const TAB_SELECTOR = '[data-testid="workflow-tab"]';
+  const LEGACY_PATH_ATTR = 'data-workflow-path';
   const LOCAL_BEFORE_SERVER = 'ComfyUI.TabManager.BeforeServerBackup.v1';
   const LOCAL_CONFLICT_BACKUP = 'ComfyUI.TabManager.UnsyncedBackup.v1';
   const LOCAL_PENDING = 'ComfyUI.TabManager.PendingLayout.v1';
@@ -413,6 +415,9 @@ if (!document.querySelector('link[data-ctm-styles]')) {
   let dragEndTime = 0;
   let lastConnectProblem = '';
   let warnedMissingCss = false;
+  let detectionMode = 'inactive';
+  let nodeByPath = new Map();
+  let pathByNode = new WeakMap();
   const oldPaths = new WeakMap();
   let nativeTabSnapshot = [];
   let lastTabAlignment = null;
@@ -1261,26 +1266,108 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     restorePanel = card;
   }
 
-  // ComfyUI Frontend v1.55.14 (WorkflowTabs.vue) renders native tabs in:
-  // .workflow-tabs-container > .no-drag.overflow-hidden > .workflow-tabs-scroll > .workflow-tabs
-  // Each WorkflowTab carries the exact `data-workflow-path` on its native DOM node.
-  // We read this DOM instead of relying on a private app.extensionManager.workflow API.
-  function nativeTabs() {
-    return nativeStrip ? [...nativeStrip.querySelectorAll('[data-testid="workflow-tab"][data-workflow-path]')]
-      .filter(node => node.getAttribute('data-workflow-path')) : [];
+  // v1.55.x exposes paths on the native DOM; Reka Tabs (v1.59.x) does not.
+  // The workflow store is the authoritative source for paths in the new UI.
+  function storeWorkflows() {
+    try {
+      const list = app.extensionManager?.workflow?.openWorkflows;
+      if (!Array.isArray(list)) return [];
+      return list.flatMap(w => {
+        const path = typeof w?.path === 'string' ? w.path : '';
+        if (!path) return [];
+        return [{
+          path,
+          filename: typeof w.filename === 'string' && w.filename ? w.filename : path.split('/').pop(),
+          isModified: !!w.isModified,
+          isPersisted: w.isPersisted !== false
+        }];
+      });
+    } catch (error) {
+      console.warn('[ComfyUI Tab Manager] Cannot read the workflow store:', error);
+      return [];
+    }
   }
-  function nativeToggle(tab) {
-    return tab?.closest('button') || tab?.closest('[role="tab"]');
+  function nativeTabs() {
+    return nativeStrip ? [...nativeStrip.querySelectorAll(TAB_SELECTOR)] : [];
+  }
+  function tabFilename(node) {
+    return node.querySelector('.workflow-label')?.textContent?.trim() || '';
+  }
+  function tabDirty(node) {
+    return !!node.querySelector('[data-testid="workflow-dirty-indicator"]');
+  }
+  // Mapping never invents workflow paths from filenames. Ambiguous or incomplete
+  // mappings fail open to native ComfyUI tabs rather than risk wrong assignments.
+  function mapTabs(nodes) {
+    nodeByPath = new Map();
+    pathByNode = new WeakMap();
+    if (!nodes.length) { detectionMode = 'empty'; return []; }
+    const register = (node, wf) => {
+      nodeByPath.set(wf.path, node);
+      pathByNode.set(node, wf);
+      return wf;
+    };
+    if (nodes.every(node => !!node.getAttribute(LEGACY_PATH_ATTR))) {
+      detectionMode = 'legacy';
+      return nodes.map(node => {
+        const path = node.getAttribute(LEGACY_PATH_ATTR);
+        return register(node, {
+          path, filename: tabFilename(node) || path.split('/').pop() || path,
+          isModified: tabDirty(node), isPersisted: true
+        });
+      });
+    }
+    const store = storeWorkflows();
+    const labels = nodes.map(tabFilename);
+    // The tab bar renders openWorkflows in order. Accept positional matching
+    // only when all available labels agree; one coincidental match is unsafe.
+    if (store.length === nodes.length &&
+        labels.every((label, i) => label && label === store[i].filename)) {
+      detectionMode = 'store';
+      return nodes.map((node, i) => register(node, {
+        ...store[i], isModified: store[i].isModified || tabDirty(node)
+      }));
+    }
+    // During reordered DOM updates, match by unique filename only. Never pair
+    // duplicate names arbitrarily (different paths can share a filename).
+    const counts = new Map();
+    for (const w of store) counts.set(w.filename, (counts.get(w.filename) || 0) + 1);
+    const unique = new Map(store.filter(w => counts.get(w.filename) === 1).map(w => [w.filename, w]));
+    const matched = labels.map(label => label && unique.get(label));
+    if (store.length === nodes.length && matched.every(Boolean) &&
+        new Set(matched.map(w => w.path)).size === nodes.length) {
+      detectionMode = 'filename';
+      return nodes.map((node, i) => register(node, {
+        ...matched[i], isModified: matched[i].isModified || tabDirty(node)
+      }));
+    }
+    detectionMode = 'unresolved';
+    return nodes.map(() => null);
   }
   function workflows() {
-    return nativeTabs().map(node => {
-      const path = node.getAttribute('data-workflow-path');
-      const filename = node.querySelector('.workflow-label')?.textContent?.trim() || path.split('/').pop() || path;
-      const dirty = !!node.querySelector('[data-testid="workflow-dirty-indicator"]');
-      return { path, filename, isModified: dirty, isPersisted: true };
-    });
+    return mapTabs(nativeTabs()).filter(Boolean);
+  }
+  function nativeToggle(tab) {
+    if (!tab) return null;
+    // Legacy (Frontend 1.55.x): data-testid="workflow-tab" lives INSIDE the
+    // activation button and also contains a nested close button. Picking a
+    // descendant button before the parent ACTIVATES THE CLOSE BUTTON instead.
+    // Reka (Frontend 1.59.x): the trigger may be the tab itself or a child.
+    const parentTrigger = tab.closest('[role="tab"]') || tab.closest('button');
+    if (parentTrigger) return parentTrigger;
+    const childTrigger = tab.querySelector('[role="tab"]');
+    if (childTrigger) return childTrigger;
+    // Never choose an inner close button as an activation fallback.
+    return [...tab.querySelectorAll('button')].find(button =>
+      !button.closest('[data-testid="close-workflow-button"], [data-testid="workflow-close-button"]') &&
+      !/\b(close|delete|remove)\b/i.test(button.getAttribute('aria-label') || '')
+    ) || null;
   }
   function activePath() {
+    try {
+      const path = app.extensionManager?.workflow?.activeWorkflow?.path;
+      if (path && nodeByPath.has(path)) return path;
+    } catch (_error) { /* use native tab state */ }
     for (const node of nativeTabs()) {
       const toggle = nativeToggle(node);
       if (!toggle) continue;
@@ -1290,23 +1377,74 @@ if (!document.querySelector('link[data-ctm-styles]')) {
           toggle.getAttribute('aria-selected') === 'true' ||
           toggle.classList.contains('p-togglebutton-checked') ||
           toggle.classList.contains('p-highlight')) {
-        return node.getAttribute('data-workflow-path');
+        return node.getAttribute(LEGACY_PATH_ATTR) || pathByNode.get(node)?.path || null;
       }
     }
-    // Most builds expose the active tab on its button; if a theme hides that,
-    // the grouping remains fully functional, just without active highlights.
     return null;
   }
   function getNativeTab(path) {
-    return nativeTabs().find(tab => tab.getAttribute('data-workflow-path') === path) || null;
+    const mapped = nodeByPath.get(path);
+    if (mapped?.isConnected) return mapped;
+    // A Vue re-render can replace the native element between renders/clicks.
+    mapTabs(nativeTabs());
+    return nodeByPath.get(path) || null;
+  }
+  function activateNativeTab(trigger) {
+    // Reka TabsTrigger listens to mousedown; the old layout listens to click.
+    const rect = trigger.getBoundingClientRect();
+    const init = {
+      bubbles: true, cancelable: true, composed: true, view: window,
+      button: 0, buttons: 1, detail: 1,
+      clientX: rect.left + rect.width / 2,
+      clientY: rect.top + rect.height / 2
+    };
+    if (typeof PointerEvent === 'function') {
+      trigger.dispatchEvent(new PointerEvent('pointerdown', {
+        ...init, pointerId: 1, pointerType: 'mouse', isPrimary: true
+      }));
+    }
+    trigger.dispatchEvent(new MouseEvent('mousedown', init));
+    if (typeof PointerEvent === 'function') {
+      trigger.dispatchEvent(new PointerEvent('pointerup', {
+        ...init, buttons: 0, pointerId: 1, pointerType: 'mouse', isPrimary: true
+      }));
+    }
+    trigger.dispatchEvent(new MouseEvent('mouseup', { ...init, buttons: 0 }));
+    trigger.dispatchEvent(new MouseEvent('click', { ...init, buttons: 0 }));
+  }
+  function openWorkflowViaStore(path) {
+    try {
+      const store = app.extensionManager?.workflow;
+      const workflow = store?.openWorkflows?.find(w => w?.path === path);
+      if (workflow && typeof store.openWorkflow === 'function') {
+        store.openWorkflow(workflow);
+        return true;
+      }
+    } catch (error) {
+      console.warn('[ComfyUI Tab Manager] Cannot switch workflows through the store:', error);
+    }
+    return false;
   }
   function openWorkflow(path) {
     const native = getNativeTab(path);
     const trigger = nativeToggle(native);
-    if (!trigger) { console.warn('[ComfyUI Tab Manager] Native tab unavailable:', path); return; }
-    // ComfyUI's own @click handler in WorkflowTabs.vue calls workflowService.openWorkflow.
-    trigger.click();
+    if (trigger) {
+      // Preserve the EXACT legacy click behavior. Synthetic pointer/mousedown
+      // sequences are only necessary for Reka TabsTrigger, and should not be
+      // sent to the old PrimeVue buttons.
+      if (native?.hasAttribute(LEGACY_PATH_ATTR)) trigger.click();
+      else activateNativeTab(trigger);
+    } else if (!openWorkflowViaStore(path)) {
+      console.warn('[ComfyUI Tab Manager] Cannot activate native workflow tab:', path);
+    }
     queueRender();
+  }
+  function nativeMappingIncomplete(strip = nativeStrip) {
+    if (!strip) return false;
+    const nodes = [...strip.querySelectorAll(TAB_SELECTOR)];
+    if (!nodes.length) return storeWorkflows().length > 0;
+    const mapped = mapTabs(nodes);
+    return mapped.some(w => !w) || new Set(mapped.map(w => w?.path)).size !== mapped.length;
   }
   function openNativeWorkflowMenu(path, event) {
     const native = getNativeTab(path);
@@ -1874,9 +2012,9 @@ if (!document.querySelector('link[data-ctm-styles]')) {
   function syncPaths() {
     const current = nativeTabs().map(node => ({
       node,
-      path: node.getAttribute('data-workflow-path'),
-      name: node.querySelector('.workflow-label')?.textContent?.trim() || ''
-    }));
+      path: pathByNode.get(node)?.path || node.getAttribute(LEGACY_PATH_ATTR),
+      name: tabFilename(node)
+    })).filter(entry => !!entry.path);
     let changed = false;
     // Best signal: ComfyUI reuses the exact native tab element and changes its path.
     for (const entry of current) {
@@ -1953,6 +2091,12 @@ if (!document.querySelector('link[data-ctm-styles]')) {
   }
   function render(force = false) {
     if (!bar || !root || !root.isConnected || !nativeStrip?.isConnected) return;
+    // Restore the native bar immediately if the frontend becomes unresolvable.
+    if (nativeMappingIncomplete()) {
+      lastConnectProblem = 'unmapped-tabs';
+      detach();
+      return;
+    }
     syncPaths();
     const next = signature();
     if (!force && lastSignature === next) return;
@@ -2181,7 +2325,7 @@ if (!document.querySelector('link[data-ctm-styles]')) {
       const candidate = strip.closest(SELECTOR);
       if (!candidate || !candidate.isConnected) continue;
       // Pick the actual top-bar widget, not hidden template copies, where possible.
-      const tabCount = strip.querySelectorAll('[data-testid="workflow-tab"][data-workflow-path]').length;
+      const tabCount = strip.querySelectorAll(TAB_SELECTOR).length;
       if (!tabCount && strips.length > 1) continue;
       let host = strip;
       while (host.parentElement && host.parentElement !== candidate) host = host.parentElement;
@@ -2200,6 +2344,15 @@ if (!document.querySelector('link[data-ctm-styles]')) {
       return;
     }
     const { candidate, strip, host } = point;
+    if (nativeMappingIncomplete(strip)) {
+      if (lastConnectProblem !== 'unmapped-tabs') {
+        lastConnectProblem = 'unmapped-tabs';
+        console.warn('[ComfyUI Tab Manager] Native tabs are visible while workflow paths cannot be resolved.');
+      }
+      if (root) detach();
+      return;
+    }
+    if (lastConnectProblem === 'unmapped-tabs') lastConnectProblem = '';
     if (root === candidate && nativeStrip === strip && nativeHost === host && bar?.isConnected) return;
     detach();
     root = candidate;
@@ -2222,7 +2375,7 @@ if (!document.querySelector('link[data-ctm-styles]')) {
         attributeFilter: ['aria-selected', 'aria-pressed', 'data-state', 'title', 'class', 'data-workflow-path']
       });
       lastConnectProblem = '';
-      console.info(`[ComfyUI Tab Manager v${VERSION}] Connected: ${nativeTabs().length} opened workflow tabs`);
+      console.info(`[ComfyUI Tab Manager v${VERSION}] Connected (${detectionMode}): ${nativeTabs().length} opened workflow tabs`);
     } catch (error) {
       console.error(`[ComfyUI Tab Manager v${VERSION}] Initialization failed:`, error);
       detach();
@@ -2259,7 +2412,9 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     document.addEventListener('pointerdown', outsideHandler, true);
     document.addEventListener('keydown', event => { if (event.key === 'Escape') removePopover(); });
     window.__comfyTabManagerDebug = () => ({
-      version: VERSION,
+      version: VERSION, detectionMode,
+      mappedTabCount: workflows().length,
+      storeWorkflowCount: storeWorkflows().length,
       syncStatus, syncReady, dirty, conflict, serverRevision, lastServerCheck,
       nativeTabCount: document.querySelectorAll('[data-testid="workflow-tab"]').length,
       stripCount: document.querySelectorAll('.workflow-tabs').length,

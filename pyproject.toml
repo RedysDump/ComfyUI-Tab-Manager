@@ -1,6 +1,6 @@
 [project]
 name = "comfyui-tab-manager"
-version = "1.1.0"
+version = "1.1.1"
 description = "Color-coded and nested groups for open ComfyUI workflow tabs."
 license = { file = "LICENSE" }
 dependencies = []

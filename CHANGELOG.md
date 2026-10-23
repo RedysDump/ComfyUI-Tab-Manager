@@ -2,11 +2,22 @@
 
 Notable changes to **ComfyUI Tab Manager** are listed below.
 
+## [1.1.1] - 2026-10-23
+
+### Fixed
+
+- **Newer frontend compatibility:** Workflow tabs are detected and displayed with the updated Reka UI tab components, which no longer expose the legacy `data-workflow-path` attribute. Workflow paths are resolved using the ComfyUI workflow store, while retaining support for older frontends.
+- **Reliable workflow switching:** Corrected native tab activation for both the legacy (1.55.x) and newer (1.59.x) frontend implementations.
+- **Accidental tab closing:** Fixed a regression where selecting a workflow on older frontends could target a close button instead of activating the tab.
+- **Safe native-tab fallback:** If workflow tabs cannot be mapped reliably, the extension leaves ComfyUI's native tab bar visible rather than showing an empty replacement.
+
+Thanks to [@hulkx07](https://github.com/hulkx07) for identifying the compatibility issues and proposing improvements in [pull request #3](https://github.com/RedysDump/ComfyUI-Tab-Manager/pull/3).
+
 ## [1.1.0] - 2026-10-23
 
 ### Added
 
-- **Theme Studio:** Live appearance preview and seven built-in presets (Classic, Minimal, Soft, Neon, Tropical, Ocean and Library).
+- **Customize Theme:** Live appearance preview and seven built-in presets (Classic, Minimal, Soft, Neon, Tropical, Ocean and Library).
 - **Per-group and per-tab customization:** Choose individual colors, typography, borders and other appearance settings, with per-property theme inheritance.
 - **Flexible theme application:** Style tabs, groups or both while preserving or overwriting individual customizations.
 - **Custom theme presets:** Save and import themes as JSON.

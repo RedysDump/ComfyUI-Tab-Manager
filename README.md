@@ -8,13 +8,21 @@
 
 https://github.com/user-attachments/assets/cbbdbf18-35fa-4bd3-9bd3-ff8c88685d30
 
-**Version:** 1.1.0  
+**Version:** 1.1.1  
 **Type:** ComfyUI frontend extension with local server-backed settings  
 **Dependencies:** ComfyUI; no additional Python packages required
 
-## What's new in v1.1.0
+## What's new in v1.1.1
 
-- **Customize Theme:** Customize colors, typography, borders, spacing and more with a live preview and seven built-in themes: Classic, Minimal, Soft, Neon, Tropical, Ocean and Library.
+- **Compatibility with newer ComfyUI frontends:** Workflow tabs now appear correctly with newer Reka UI tab components (including Frontend 1.59.0), alongside the legacy tab interface.
+- **Reliable workflow switching:** Fixed tab selection across both UI generations, including a regression that could unintentionally close workflow tabs in older frontends.
+- **Safer fallback:** If the extension cannot reliably identify the open workflows, ComfyUI's native tabs remain available instead of being hidden behind an empty bar.
+
+Thanks to [@hulkx07](https://github.com/hulkx07) for identifying the frontend compatibility issues and proposing a fix in [PR #3](https://github.com/RedysDump/ComfyUI-Tab-Manager/pull/3).
+
+## Highlights from v1.1.0
+
+- **Customize Themes:** Customize colors, typography, borders, spacing and more with a live preview and seven built-in themes: Classic, Minimal, Soft, Neon, Tropical, Ocean and Library.
 - **Personalize groups and tabs:** Apply individual styles to a group or workflow tab, with per-setting inheritance from your global theme.
 - **Flexible theme application:** Apply a theme to tabs, groups or both, while choosing whether to preserve or replace individual customizations.
 - **Theme presets:** Save your own themes as JSON presets and import them whenever you like.
@@ -104,7 +112,7 @@ This feature restores tab references, not deleted or unsaved workflow files.
 
 ## Compatibility and troubleshooting
 
-ComfyUI Tab Manager is designed for the modern ComfyUI **top workflow tab bar**. The original release was confirmed with **ComfyUI Frontend 1.55.14**. Other frontend versions and extensions may affect compatibility.
+ComfyUI Tab Manager is designed for the modern ComfyUI **top workflow tab bar**. Version 1.1.1 has been tested with **ComfyUI Frontend 1.55.18** and **1.59.0**. Other frontend versions and extensions may behave differently.
 
 - **Can't see + Group?** Enable the top workflow tab bar, restart ComfyUI and hard-refresh the browser (`Ctrl + F5`).
 - **Duplicate tabs or buttons?** Check for duplicate installations inside `custom_nodes`.
