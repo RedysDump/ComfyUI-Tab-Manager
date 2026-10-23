@@ -23,10 +23,13 @@
   transition: background .13s, box-shadow .13s;
 }
 .ctm-group-label:hover, .ctm-group-label.ctm-drag-over { background: color-mix(in srgb,var(--ctm-color) 26%,transparent); box-shadow: inset 0 0 0 1px var(--ctm-color); }
-.ctm-group-label.ctm-active { box-shadow: inset 0 -2px 0 var(--ctm-color); }
 .ctm-folder { font-size: 14px; line-height: 1; }
 .ctm-count { font-size: 10px; opacity: .74; }
-.ctm-caret { font-size: 11px; opacity: .8; }
+.ctm-caret {
+  display: block; width: 14px; height: 14px; flex: 0 0 14px; align-self: center;
+  fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round;
+  stroke-linejoin: round; pointer-events: none; opacity: .8;
+}
 .ctm-tab { display: flex; height: 31px; align-items: center; flex-shrink: 0; min-width: 78px; max-width: 188px;
   border-radius: 8px; border: 1px solid transparent; background: var(--ctm-tab-bg, rgba(120,120,120,.12));
   color: var(--text-primary,inherit); overflow: hidden;
@@ -95,8 +98,10 @@
   border-radius: 4px; background: color-mix(in srgb, var(--ctm-parent-color) 4%, transparent);
 }
 .ctm-subgroup .ctm-group-label { height: 27px; font-size: 11px !important; }
-.ctm-group-tools { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
-.ctm-popover .ctm-group-tools .ctm-action { flex: 1 1 auto; }
+.ctm-group-tools { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; margin: 10px 0; }
+.ctm-popover .ctm-group-tools .ctm-action { min-width: 0; }
+.ctm-popover .ctm-group-tools .ctm-action:first-child { grid-column: 1 / -1; }
+.ctm-popover .ctm-group-tools .ctm-action:nth-child(4) { grid-column: 1 / -1; }
 .ctm-bar .ctm-root-drop {
   display: none; height: 29px; flex-shrink: 0; align-items: center; padding: 0 9px;
   border: 1px dashed #9e91d4; border-radius: 8px; white-space: nowrap;
@@ -173,3 +178,816 @@
 /* Native workflow context menus are portaled outside the custom tab bar.
    Hide unsafe close/mass-close commands even if Reka UI appends them later. */
 [data-ctm-blocked-close="true"] { display: none !important; pointer-events: none !important; }
+
+/* Development build: layout storage controls. */
+.ctm-bar > .ctm-storage-button {
+  flex: 0 0 auto; height: 29px; min-width: 27px; border-radius: 8px;
+  border: 1px solid #7776; background: #7772; color: #bdb7cf; font-size: 17px !important;
+}
+.ctm-bar > .ctm-storage-button:hover { color: #eee; border-color: #a593ff; background: #a593ff22; }
+.ctm-popover .ctm-layout-actions { display: flex; flex-direction: column; gap: 7px; margin-top: 12px; }
+.ctm-popover .ctm-layout-actions .ctm-action { text-align: left; width: 100%; }
+
+/* Theme Studio v1.1.0: overrides are scoped to our own bar/popovers only. */
+/* Root layout never changes when a theme is applied to only one kind of item. */
+.ctm-bar.ctm-theme-groups .ctm-group,
+.ctm-bar.ctm-theme-groups .ctm-subgroups,
+.ctm-bar.ctm-theme-tabs .ctm-ungrouped { gap: var(--ctm-gap); }
+.ctm-bar .ctm-group-label.ctm-themed-item {
+  height: var(--ctm-tab-height); border-radius: var(--ctm-radius);
+  border-width: var(--ctm-outline-width);
+  font-size: var(--ctm-font-size) !important;
+  font-family: var(--ctm-font-family, inherit) !important;
+  font-weight: var(--ctm-font-weight, 650) !important;
+  font-style: var(--ctm-font-style, normal) !important;
+  -webkit-text-stroke: var(--ctm-stroke-width, 0px) var(--ctm-stroke-color, transparent);
+  color: var(--ctm-item-text,var(--ctm-color)) !important;
+  background: var(--ctm-item-background, color-mix(in srgb, var(--ctm-color) var(--ctm-group-tint), transparent));
+}
+.ctm-bar .ctm-group-label.ctm-themed-item:hover {
+  background: var(--ctm-item-background, color-mix(in srgb, var(--ctm-color) var(--ctm-hover-tint), transparent));
+  box-shadow: inset 0 0 0 var(--ctm-hover-outline-width) var(--ctm-color);
+}
+.ctm-bar .ctm-tab.ctm-themed-item {
+  height: var(--ctm-tab-height); border-radius: var(--ctm-radius);
+  border-width: var(--ctm-outline-width);
+  background: var(--ctm-item-background,var(--ctm-tab-bg)); color: var(--ctm-item-text,var(--ctm-text));
+  font-size: var(--ctm-font-size) !important;
+  font-family: var(--ctm-font-family, inherit) !important;
+  font-weight: var(--ctm-font-weight, inherit) !important;
+  font-style: var(--ctm-font-style,normal) !important;
+  -webkit-text-stroke: var(--ctm-stroke-width, 0px) var(--ctm-stroke-color, transparent);
+}
+.ctm-bar .ctm-tab.ctm-themed-item:hover { background: var(--ctm-item-background,var(--ctm-tab-hover)); }
+.ctm-bar .ctm-tab.ctm-themed-item.ctm-selected {
+  border-color: color-mix(in srgb, var(--ctm-accent) 70%, transparent);
+  background: var(--ctm-item-background,color-mix(in srgb, var(--ctm-accent) 18%, var(--ctm-tab-bg)));
+}
+.ctm-bar .ctm-tab.ctm-themed-item .ctm-tab-main { font-size: var(--ctm-font-size) !important; }
+.ctm-bar.ctm-theme-groups .ctm-new-group,
+.ctm-bar.ctm-theme-groups .ctm-storage-button {
+  height: var(--ctm-tab-height); border-radius: var(--ctm-radius);
+  border-width: var(--ctm-outline-width) !important;
+  border-style: solid !important;
+  border-color: color-mix(in srgb, var(--ctm-accent) 70%, transparent) !important;
+  background: var(--ctm-tab-bg);
+  font-size: var(--ctm-font-size) !important;
+  color: var(--ctm-text);
+}
+.ctm-bar.ctm-theme-groups .ctm-new-group.ctm-colored {
+  color: var(--ctm-create-color) !important;
+  border-color: var(--ctm-create-color) !important;
+  background: color-mix(in srgb, var(--ctm-create-color) 14%, var(--ctm-tab-bg));
+}
+.ctm-bar.ctm-theme-groups .ctm-new-group:hover,
+.ctm-bar.ctm-theme-groups .ctm-storage-button:hover { background: var(--ctm-tab-hover); box-shadow: none; }
+.ctm-bar.ctm-theme-groups .ctm-subgroups { border-radius: var(--ctm-radius); }
+.ctm-bar.ctm-themed button:focus-visible,
+.ctm-popover.ctm-themed button:focus-visible,
+.ctm-popover.ctm-themed input:focus-visible,
+.ctm-popover.ctm-themed select:focus-visible {
+  outline: 2px solid var(--ctm-accent); outline-offset: 2px;
+}
+.ctm-popover.ctm-themed { background: var(--ctm-panel-bg); color: var(--ctm-text); }
+.ctm-popover.ctm-themed .ctm-action { border-radius: var(--ctm-radius); }
+
+/* Theme editor is scrollable even on small displays; does not affect workflow graph. */
+.ctm-popover.ctm-theme-studio { width: 414px; max-height: calc(100vh - 20px); overflow-y: auto; }
+.ctm-theme-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 13px; row-gap: 5px; }
+.ctm-popover .ctm-theme-field { display: flex; position: relative; flex-wrap: wrap; align-items: center; gap: 5px; margin: 4px 0; font-size: 11px; }
+.ctm-theme-field > span:first-child { flex: 1 1 auto; }
+.ctm-theme-field > .ctm-theme-value { opacity: .7; font-size: 10px; }
+.ctm-theme-field:first-of-type { grid-column: 1 / -1; }
+.ctm-theme-studio > .ctm-theme-field { margin-bottom: 12px; }
+.ctm-theme-select { max-width: 100%; min-width: 86px; padding: 5px 6px; border-radius: 6px; border: 1px solid #9995; background: #8882; color: inherit; }
+.ctm-theme-color { width: 38px; height: 27px; padding: 0; border-radius: 5px; border: 1px solid #9995; cursor: pointer; }
+.ctm-theme-range { flex: 0 0 100%; min-width: 0; width: 100%; accent-color: var(--ctm-accent,#a18eff); }
+.ctm-popover .ctm-theme-launch { width: 100%; margin-top: 11px; text-align: left; }
+.ctm-popover .ctm-action { color: inherit; }
+.ctm-popover.ctm-themed .ctm-action { color: var(--ctm-text); border-width: var(--ctm-outline-width); }
+.ctm-popover.ctm-themed .ctm-primary { color: #fff; }
+.ctm-popover.ctm-themed .ctm-danger { color: #ff9d9d; }
+
+/* Compact optional individual appearance editor. No controls are added to the main tab bar. */
+.ctm-popover.ctm-individual-editor { width: 350px; max-height: calc(100vh - 20px); overflow-y: auto; }
+.ctm-popover .ctm-individual-field { display: grid; grid-template-columns: minmax(0,1fr) 18px 113px;
+  align-items: center; gap: 7px; margin: 7px 0; }
+.ctm-individual-field > input[type="checkbox"] { accent-color: #a593ff; }
+.ctm-individual-field .ctm-theme-select { min-width: 0; width: 100%; }
+.ctm-individual-field .ctm-theme-color { justify-self: start; }
+.ctm-popover .ctm-customize-launch { width: 100%; margin-top: 9px; text-align: left; }
+
+/* ===== v1.1.0: consistent, accessible, isolated controls ===== */
+/* Popovers are UI chrome, not tabs: they never inherit an individual tab theme. */
+.ctm-popover,
+.ctm-popover.ctm-themed {
+  --ctm-control-bg: #282a31;
+  --ctm-control-border: #575b68;
+  --ctm-control-text: #f1f2f6;
+  --ctm-control-accent: #a593ff;
+  background: #1c1d23 !important;
+  color: var(--ctm-control-text) !important;
+  color-scheme: dark;
+  font-family: Inter, system-ui, sans-serif !important;
+  font-size: 13px;
+}
+.ctm-popover select,
+.ctm-popover .ctm-theme-select,
+.ctm-popover input:not([type="checkbox"]):not([type="range"]):not([type="color"]) {
+  appearance: auto;
+  background: var(--ctm-control-bg) !important;
+  color: var(--ctm-control-text) !important;
+  border: 1px solid var(--ctm-control-border) !important;
+  border-radius: 7px;
+  color-scheme: dark;
+  font-family: Inter, system-ui, sans-serif !important;
+  font-weight: 400 !important;
+  font-style: normal !important;
+  -webkit-text-stroke: 0 transparent !important;
+  text-shadow: none !important;
+}
+.ctm-popover select option,
+.ctm-popover select optgroup {
+  background-color: #282a31 !important;
+  color: #f1f2f6 !important;
+  font-weight: 400 !important;
+}
+.ctm-popover select:focus-visible,
+.ctm-popover input:focus-visible,
+.ctm-popover button:focus-visible { outline: 2px solid #b6a8ff !important; outline-offset: 2px; }
+.ctm-popover .ctm-action,
+.ctm-popover .ctm-choice,
+.ctm-popover .ctm-popover-dismiss {
+  font-family: Inter, system-ui, sans-serif !important;
+  font-style: normal !important;
+  font-weight: 500 !important;
+  font-size: 12px !important;
+  -webkit-text-stroke: 0 transparent !important;
+  text-shadow: none !important;
+  color: #f1f2f6;
+}
+.ctm-popover .ctm-hint { line-height: 1.4; opacity: 1; color: #adb1c0; }
+.ctm-popover .ctm-primary { color: #fff !important; }
+.ctm-popover .ctm-danger { color: #ffa4a4 !important; }
+
+/* The settings button is a neutral, fixed-size utility, always LEFT of + Group. */
+.ctm-bar > .ctm-storage-button,
+.ctm-bar.ctm-theme-groups > .ctm-storage-button {
+  flex-shrink: 0; height: 29px !important; width: 29px; min-width: 29px;
+  border-radius: 8px !important; border: 1px solid #686c78 !important;
+  background: #2b2c32 !important; color: #d8dbe4 !important;
+  font: 17px/1 Inter,system-ui,sans-serif !important;
+  box-shadow: none !important; text-shadow: none !important;
+  -webkit-text-stroke: 0 transparent !important;
+}
+.ctm-bar > .ctm-storage-button:hover,
+.ctm-bar.ctm-theme-groups > .ctm-storage-button:hover {
+  color: #fff !important; border-color: #aaa4c9 !important;
+  background: #3b3b47 !important;
+}
+.ctm-bar > .ctm-new-group,
+.ctm-bar.ctm-theme-groups > .ctm-new-group {
+  height: 29px !important; font-size: 12px !important; font-weight: 500 !important;
+  font-family: Inter,system-ui,sans-serif !important; font-style: normal !important;
+  -webkit-text-stroke: 0 transparent !important; text-shadow: none !important;
+  border-radius: 9px !important; border: 1px dashed #8e8291 !important;
+  background: transparent; color: inherit; box-shadow: none !important;
+}
+.ctm-bar.ctm-theme-groups > .ctm-new-group.ctm-colored,
+.ctm-bar > .ctm-new-group.ctm-colored {
+  color: var(--ctm-create-color) !important;
+  border-color: var(--ctm-create-color) !important;
+  background: color-mix(in srgb, var(--ctm-create-color) 14%, transparent) !important;
+}
+.ctm-bar.ctm-theme-groups > .ctm-new-group:hover { background: #7773 !important; }
+.ctm-bar > .ctm-new-group.ctm-colored:hover { background: color-mix(in srgb,var(--ctm-create-color) 25%,transparent) !important; }
+.ctm-bar > .ctm-storage-button:focus-visible { outline: 2px solid #b6a8ff !important; }
+
+/* Icons that looked like permanent decorations are removed. Tab context remains
+   accessible through a subtle hover-only ellipsis, plus Shift+right-click. */
+.ctm-bar .ctm-tab { position: relative; }
+.ctm-bar .ctm-tab-group-button {
+  position: absolute; z-index: 1; right: 24px; top: 0;
+  width: 21px; height: 100%; opacity: 0; visibility: hidden;
+  color: #dde0ec !important; font: 16px/1 Inter,system-ui,sans-serif !important;
+  -webkit-text-stroke: 0 transparent !important; text-shadow: none !important;
+  background: #30313b; border-radius: 4px;
+}
+.ctm-bar .ctm-tab:hover .ctm-tab-group-button,
+.ctm-bar .ctm-tab-group-button:focus-visible {
+  opacity: 1; visibility: visible;
+}
+.ctm-bar .ctm-tab-group-button:hover { color: #fff !important; background: #555368 !important; }
+@media (hover: none) {
+  .ctm-bar .ctm-tab-group-button { visibility: visible; opacity: .85; }
+  .ctm-bar .ctm-tab-main { padding-right: 20px; }
+}
+.ctm-bar .ctm-tab-main { -webkit-text-stroke: 0 transparent !important; }
+.ctm-bar .ctm-tab-close,
+.ctm-bar .ctm-tab-group-button,
+.ctm-bar .ctm-caret { text-shadow: none !important; -webkit-text-stroke: 0 transparent !important; font-style: normal !important; }
+
+/* A subtle boundary around EXPANDED group contents replaces extra markers.
+   This also works for subgroups and does not alter native workflow files. */
+.ctm-bar .ctm-group-contents {
+  display: inline-flex; align-items: center; gap: 4px; min-width: 0; flex: 0 0 auto;
+  padding: 2px 4px; border-radius: 9px;
+  background: color-mix(in srgb, var(--ctm-parent-color) 5%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ctm-parent-color) 25%, transparent);
+}
+.ctm-bar .ctm-group-contents:empty { display: none; }
+.ctm-bar .ctm-subgroups {
+  padding: 0; margin: 0; border-left: 0; border-radius: 0;
+  background: transparent;
+}
+.ctm-bar .ctm-group-label.ctm-themed-item,
+.ctm-bar .ctm-tab.ctm-themed-item { -webkit-text-stroke: 0 transparent !important; }
+
+/* Customize Theme: grouped controls, predictable columns, consistent spacing. */
+.ctm-popover.ctm-theme-studio { width: 455px; max-width: calc(100vw - 16px); max-height: calc(100vh - 20px); overflow-y: auto; padding: 17px; }
+.ctm-theme-section { border-top: 1px solid #ffffff20; margin: 13px 0 0; padding-top: 12px; }
+.ctm-theme-section .ctm-section-title { margin: 0 0 10px; font-size: 11px; color: #c9cbd5; letter-spacing: .04em; text-transform: uppercase; font-weight: 650; }
+.ctm-popover .ctm-setting-row {
+  display: grid; grid-template-columns: minmax(0,1fr) minmax(145px, 195px);
+  min-height: 34px; align-items: center; column-gap: 14px; margin: 4px 0;
+  color: #f0f1f6; opacity: 1; font-size: 12px;
+}
+.ctm-setting-label { min-width: 0; overflow-wrap: anywhere; }
+.ctm-setting-row > select { width: 100%; height: 31px; padding: 5px 8px; }
+.ctm-setting-row > input[type="color"] { justify-self: end; }
+.ctm-theme-studio .ctm-protection-summary { font-size: 11px; margin-top: 9px; }
+.ctm-theme-live-preview { min-height: 54px; margin-top: 10px; border: 1px solid #6668; border-radius: 9px; display:flex; align-items: center; flex-wrap: wrap; gap: 9px; padding: 10px; }
+.ctm-theme-live-preview > span { display: inline-flex; align-items: center; padding: 0 10px; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.ctm-popover .ctm-settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 15px; align-items: start; }
+.ctm-settings-grid > .ctm-setting-row { grid-template-columns: minmax(0, 1fr) 42px; column-gap: 8px; margin: 0; }
+.ctm-settings-grid > .ctm-setting-row:has(select) { grid-template-columns: 1fr; align-items: start; gap: 6px; }
+.ctm-settings-grid > .ctm-setting-row:has(select) > select { width: 100%; }
+.ctm-settings-grid .ctm-range-field { display: grid; grid-template-columns: 1fr auto; gap: 7px 8px; align-items: center; margin: 0; font-size: 12px; color: #f0f1f6; opacity: 1; }
+.ctm-range-field > .ctm-theme-range { grid-column: 1 / -1; margin: 0; height: 18px; accent-color: #a593ff; }
+.ctm-popover .ctm-theme-color { width: 40px; height: 27px; padding: 2px; border: 1px solid #7e808a !important; background: #2a2d35; border-radius: 6px; }
+.ctm-popover.ctm-theme-studio .ctm-popover-actions { position: sticky; bottom: -17px; background: #1c1d23; padding: 12px 0 4px; margin-top: 14px; border-top: 1px solid #ffffff20; }
+.ctm-popover .ctm-individual-field { color: #f1f2f6; opacity: 1; }
+@media (max-width: 460px) {
+  .ctm-popover .ctm-settings-grid { grid-template-columns: 1fr; }
+  .ctm-popover .ctm-setting-row { grid-template-columns: 1fr; gap: 4px; }
+}
+/* The previous order:-1 made + Group jump left of the settings button. */
+.ctm-bar > .ctm-new-group { order: 0; }
+
+/* ===== Phase 1 refinement: aligned controls, correct effect toggles, quiet group layout ===== */
+/* Expanded group contents are plain inline children, separated by a small terminal gap. */
+.ctm-bar .ctm-group-contents {
+  display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto;
+  padding: 0; margin: 0 10px 0 0; border: 0 !important;
+  border-radius: 0; background: transparent !important; box-shadow: none !important;
+}
+.ctm-bar .ctm-group-contents:empty { display: none; }
+.ctm-bar .ctm-subgroups { border: 0 !important; background: transparent !important; padding: 0; margin: 0; }
+/* Drop the retired theme shadows. Keep existing hover/drop outline cues, never drop-shadows. */
+.ctm-bar .ctm-tab, .ctm-bar .ctm-group-label { text-shadow: none !important; }
+.ctm-bar .ctm-tab .ctm-tab-main, .ctm-bar .ctm-group-label .ctm-group-name { text-shadow: none !important; }
+.ctm-bar .ctm-tab.ctm-themed-item { box-shadow: none !important; }
+.ctm-bar .ctm-group-label.ctm-themed-item { box-shadow: none !important; }
+.ctm-bar .ctm-group-label.ctm-themed-item:hover { box-shadow: inset 0 0 0 var(--ctm-hover-outline-width) var(--ctm-color) !important; }
+.ctm-bar .ctm-tab-main, .ctm-bar .ctm-group-name { filter: none; }
+
+/* A panel-background change affects real Tab Manager popovers as well as the preview.
+   Controls remain stable dark UI surfaces and do not inherit tab typography. */
+.ctm-popover, .ctm-popover.ctm-themed {
+  background-color: var(--ctm-popover-bg, #1c1d23) !important;
+  color: var(--ctm-popover-fg, #f1f2f6) !important;
+}
+.ctm-popover .ctm-theme-intro,
+.ctm-popover .ctm-theme-note { color: var(--ctm-popover-fg,#d5d8e1); }
+.ctm-popover .ctm-theme-intro { opacity: .8; }
+.ctm-popover.ctm-theme-studio {
+  width: 488px; max-width: calc(100vw - 16px); max-height: min(94vh, 900px);
+  padding: 0; overflow: hidden; display: flex; flex-direction: column;
+  gap: 0; border-radius: 12px;
+}
+.ctm-popover.ctm-theme-studio > .ctm-popover-header {
+  margin: 0; padding: 16px 18px 6px; flex: 0 0 auto;
+}
+.ctm-popover.ctm-theme-studio > .ctm-theme-intro {
+  margin: 0; padding: 0 18px 12px; font-size: 11px; line-height: 1.45;
+  text-align: center;
+}
+.ctm-popover .ctm-theme-body {
+  overflow: auto; overflow-x: hidden; min-height: 0; flex: 1 1 auto;
+  padding: 0 18px 6px; scrollbar-width: thin; scrollbar-color: #87889b66 transparent;
+}
+.ctm-popover .ctm-theme-section {
+  margin: 0; padding: 14px 0 15px; border-top: 1px solid #8883;
+}
+.ctm-popover .ctm-section-title {
+  margin: 0 0 11px; font-size: 11px; font-weight: 700;
+  letter-spacing: .045em; line-height: 1.3;
+  color: var(--ctm-popover-fg,#f1f2f6); opacity: .85;
+}
+.ctm-popover .ctm-theme-row {
+  display: grid; grid-template-columns: minmax(0, 40%) minmax(0, 60%);
+  align-items: center; gap: 0; width: 100%; min-height: 36px; margin: 0 0 6px;
+  padding: 0; opacity: 1;
+}
+.ctm-popover .ctm-theme-row > .ctm-theme-row-label { font-size: 12px; min-width: 0; }
+.ctm-popover .ctm-theme-row > select { min-width: 0; width: 100%; height: 33px; }
+.ctm-popover .ctm-theme-note {
+  margin: 7px 0 0; font-size: 11px; line-height: 1.45; opacity: .78;
+}
+.ctm-popover.ctm-theme-studio .ctm-theme-note { text-align: center; margin-bottom: 4px; }
+.ctm-popover .ctm-theme-live-preview {
+  width: 100%; min-height: 54px; margin: 9px 0 0;
+  padding: 10px; display: flex; align-items: center; flex-wrap: wrap;
+  gap: 8px; border: 1px solid #6e7283; border-radius: 9px;
+  background: var(--ctm-panel-bg, #23232b);
+}
+.ctm-popover .ctm-theme-live-preview span { display: inline-flex; align-items: center; }
+.ctm-popover .ctm-refined-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0,1fr));
+  column-gap: 16px; row-gap: 12px; align-items: stretch;
+}
+.ctm-popover .ctm-refined-field {
+  display: flex; flex-direction: column; margin: 0; min-width: 0;
+  gap: 6px; opacity: 1; font-size: 12px;
+}
+.ctm-popover .ctm-refined-field-header {
+  display: flex; align-items: center; justify-content: space-between;
+  min-height: 17px; gap: 6px; font-size: 12px; line-height: 1.3;
+}
+.ctm-popover .ctm-refined-field > select,
+.ctm-popover .ctm-refined-field > .ctm-color-control { height: 33px; width: 100%; min-width: 0; }
+.ctm-popover .ctm-refined-field > select { padding: 5px 9px; }
+.ctm-popover .ctm-color-control {
+  display: flex; align-items: center; padding: 2px 6px;
+  gap: 9px; border-radius: 7px; border: 1px solid #575b68;
+  background: #282a31; cursor: default;
+}
+.ctm-popover .ctm-color-control .ctm-theme-color {
+  flex: 0 0 38px; width: 38px; height: 26px; border: 1px solid #868a96;
+}
+.ctm-popover .ctm-color-control .ctm-hex { font: 11px/1.2 ui-monospace,SFMono-Regular,Consolas,monospace; color: #cdd0da; }
+.ctm-popover .ctm-refined-field > input[type="range"] {
+  width: 100%; height: 33px; min-width: 0; margin: 0; padding: 0;
+  accent-color: #a593ff;
+}
+.ctm-popover .ctm-refined-field output { font-size: 11px; color: var(--ctm-popover-fg,#eef); opacity: .8; }
+.ctm-popover.ctm-theme-studio > .ctm-popover-actions {
+  margin: 0; padding: 12px 18px 14px; flex: 0 0 auto;
+  border-top: 1px solid #8884; background: var(--ctm-popover-bg,#1c1d23);
+  position: static; justify-content: flex-end; gap: 8px;
+}
+.ctm-popover.ctm-theme-studio .ctm-popover-actions .ctm-action { min-height: 32px; }
+@media (max-width: 500px) {
+  .ctm-popover.ctm-theme-studio { width: min(488px, calc(100vw - 16px)); }
+  .ctm-popover .ctm-refined-grid { column-gap: 10px; }
+  .ctm-popover .ctm-color-control .ctm-hex { font-size: 9px; }
+}
+@media (max-width: 390px) {
+  .ctm-popover .ctm-refined-grid { grid-template-columns: 1fr; }
+  .ctm-popover .ctm-theme-row { grid-template-columns: 1fr; gap: 6px; }
+}
+/* Final alignment pass: no orphan half-width dropdown or uneven bottom row. */
+.ctm-popover .ctm-refined-field.ctm-refined-wide { grid-column: 1 / -1; }
+.ctm-popover .ctm-refined-field.ctm-refined-wide-select {
+  display: grid; grid-template-columns: minmax(0,40%) minmax(0,60%);
+  align-items: center; gap: 0; min-height: 36px;
+}
+.ctm-popover .ctm-refined-field.ctm-refined-wide-select > select { width: 100%; }
+/* Menus, footer buttons and dismiss remain readable even with a very light custom panel. */
+.ctm-popover .ctm-popover-dismiss { color: var(--ctm-popover-fg, #e5e7ee) !important; }
+.ctm-popover .ctm-popover-dismiss:hover {
+  background: color-mix(in srgb, var(--ctm-popover-fg,#fff) 10%,transparent) !important;
+}
+.ctm-popover.ctm-theme-studio > .ctm-popover-actions .ctm-action:not(.ctm-primary) {
+  background: #30323c !important; color: #f4f4f9 !important;
+  border: 1px solid #626674 !important;
+}
+.ctm-popover.ctm-theme-studio > .ctm-popover-actions .ctm-action:not(.ctm-primary):hover {
+  background: #3b3e4a !important;
+}
+/* The Panel Background applies to every Tab Manager panel. Keep all utility controls
+   consistently readable on arbitrary user-selected light or dark panel colors. */
+.ctm-popover .ctm-action:not(.ctm-primary) {
+  background: #30323c !important;
+  color: #f4f4f9 !important;
+  border-color: #626674 !important;
+}
+.ctm-popover.ctm-storage-editor .ctm-action {
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+.ctm-popover.ctm-storage-editor .ctm-action:not(:disabled):is(:hover, :focus-visible) {
+  background: color-mix(in srgb, var(--ctm-control-accent) 24%, var(--ctm-control-bg)) !important;
+  border-color: color-mix(in srgb, var(--ctm-control-accent) 65%, var(--ctm-control-border)) !important;
+}
+.ctm-popover .ctm-choice { color: var(--ctm-popover-fg,#f1f2f6) !important; }
+.ctm-popover .ctm-hint { color: var(--ctm-popover-fg,#cfd1da) !important; opacity: .78; }
+.ctm-popover .ctm-individual-field { color: var(--ctm-popover-fg,#f1f2f6) !important; }
+
+
+/* Phase 1 layout polish: every control belongs unmistakably to its own label. */
+.ctm-popover .ctm-refined-field.ctm-refined-wide-select {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: 16px;
+}
+.ctm-popover .ctm-refined-field.ctm-refined-wide-select > select {
+  width: 100%; min-width: 0; justify-self: stretch;
+}
+.ctm-popover .ctm-effect-card {
+  min-height: 78px;
+  padding: 10px 12px 9px;
+  border-radius: 9px;
+  border: 1px solid color-mix(in srgb, var(--ctm-popover-fg,#f4f4fa) 20%, transparent);
+  background: color-mix(in srgb, var(--ctm-popover-fg,#f4f4fa) 5%, var(--ctm-popover-bg,#1c1d23));
+  box-sizing: border-box;
+  gap: 8px;
+}
+.ctm-popover .ctm-effect-card .ctm-refined-field-header { min-height: 20px; }
+.ctm-popover .ctm-effect-card > input[type='range'] { height: 24px; }
+.ctm-popover .ctm-refined-grid:has(.ctm-effect-card) { row-gap: 10px; }
+.ctm-popover .ctm-effect-card output { opacity: .92; font-variant-numeric: tabular-nums; }
+@media (max-width: 390px) {
+  .ctm-popover .ctm-refined-field.ctm-refined-wide-select {
+    grid-template-columns: 1fr; gap: 6px;
+  }
+}
+/* The legacy .ctm-theme-range uses flex-basis:100%, which makes vertical
+   card sliders overflow their labeled cards. Keep exact 24px track rows. */
+.ctm-popover .ctm-effect-card > input.ctm-theme-range {
+  flex: 0 0 24px;
+  width: 100%; height: 24px; min-height: 24px; max-height: 24px;
+}
+
+/* ===== Phase 1: user-requested compact/symmetric controls & scroll stability ===== */
+.workflow-tabs-container.ctm-ready.ctm-custom-bar-height {
+  height: var(--ctm-bar-height) !important;
+  min-height: var(--ctm-bar-height) !important;
+  box-sizing: border-box;
+}
+.workflow-tabs-container.ctm-ready > .ctm-bar { height: 100%; min-height: 0; }
+.ctm-bar > .ctm-items {
+  min-height: 0; height: 100%; flex-shrink: 1;
+  scrollbar-width: none !important; -ms-overflow-style: none;
+  overscroll-behavior-x: contain;
+}
+.ctm-bar > .ctm-items::-webkit-scrollbar { display: none !important; width: 0; height: 0; }
+.ctm-bar > .ctm-items .ctm-group,
+.ctm-bar > .ctm-items .ctm-ungrouped,
+.ctm-bar > .ctm-items .ctm-subgroups,
+.ctm-bar > .ctm-items .ctm-tab,
+.ctm-bar > .ctm-items .ctm-group-label { flex-shrink: 0 !important; }
+.ctm-bar > .ctm-items .ctm-group-contents { margin-right: var(--ctm-content-gap, 6px); flex-shrink: 0 !important; }
+.ctm-bar .ctm-tab.ctm-themed-item .ctm-tab-main { padding-left: var(--ctm-width-padding, 10px); }
+.ctm-bar .ctm-group-label.ctm-themed-item { padding-left: var(--ctm-width-padding, 10px); padding-right: var(--ctm-width-padding, 10px); }
+.ctm-bar > .ctm-scroll-track {
+  position: absolute; bottom: 0; height: 5px; z-index: 3;
+  background: transparent; border-radius: 3px; touch-action: none;
+  opacity: .64; transition: opacity .15s;
+}
+.ctm-bar > .ctm-scroll-track[hidden] { display: none !important; }
+.ctm-bar:hover > .ctm-scroll-track { opacity: .95; }
+.ctm-bar > .ctm-scroll-track .ctm-scroll-thumb {
+  position: absolute; left: 0; bottom: 0; height: 3px; border-radius: 4px;
+  background: #8e91a7; pointer-events: none;
+}
+/* Transparent backgrounds affect the surface only, never text or icons. */
+.ctm-bar .ctm-tab.ctm-themed-item { background: var(--ctm-item-background, var(--ctm-tab-bg-alpha)) !important; }
+.ctm-bar .ctm-tab.ctm-themed-item:hover,
+.ctm-bar .ctm-tab.ctm-themed-item.ctm-selected:hover {
+  background: var(--ctm-item-hover-background, var(--ctm-tab-hover-alpha)) !important;
+}
+.ctm-bar .ctm-tab.ctm-themed-item.ctm-selected:not(:hover) {
+  background: var(--ctm-item-background, color-mix(in srgb, color-mix(in srgb, var(--ctm-accent) 18%, var(--ctm-tab-bg)) var(--ctm-tab-opacity), transparent)) !important;
+}
+/* In active+hover state, retain the active border but display the hover surface. */
+.ctm-bar .ctm-tab.ctm-themed-item.ctm-selected:hover { border-color: var(--ctm-accent) !important; }
+/* Quiet options button: low-alpha until hover/focus; remains clickable. */
+.ctm-bar .ctm-tab-group-button { background: rgba(48,49,59,.24) !important; opacity: 0; }
+.ctm-bar .ctm-tab:hover .ctm-tab-group-button,
+.ctm-bar .ctm-tab-group-button:focus-visible { opacity: .24 !important; visibility: visible; }
+.ctm-bar .ctm-tab-group-button:hover, .ctm-bar .ctm-tab-group-button:focus-visible {
+  opacity: .83 !important; background: rgba(70,71,85,.6) !important;
+}
+@media (hover:none) { .ctm-bar .ctm-tab-group-button { opacity: .65 !important; } }
+/* Centralised, symmetrical 2-column settings grid, centered labels and option values. */
+.ctm-popover .ctm-refined-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px 16px; }
+.ctm-popover .ctm-refined-field-header { justify-content: center; text-align: center; flex-wrap: wrap; }
+.ctm-popover .ctm-refined-field-header > span { text-align: center; }
+.ctm-popover .ctm-refined-field > select { text-align: center; text-align-last: center; }
+.ctm-popover .ctm-theme-row select { text-align: center; text-align-last: center; }
+.ctm-popover .ctm-color-control { justify-content: center; gap: 10px; }
+.ctm-popover .ctm-color-control .ctm-hex { text-align: center; }
+.ctm-popover .ctm-refined-field.ctm-refined-wide-select { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.ctm-popover .ctm-refined-field.ctm-refined-wide-select > .ctm-refined-field-header { justify-content: center; }
+.ctm-popover .ctm-italic-field > input.ctm-italic-switch {
+  appearance: auto; align-self: center; width: 19px; height: 19px;
+  accent-color: #a593ff; cursor: pointer; margin: 6px 0;
+}
+.ctm-popover .ctm-effect-card .ctm-refined-field-header { justify-content: space-between; }
+.ctm-popover .ctm-effect-card .ctm-refined-field-header > span { text-align: left; }
+.ctm-popover .ctm-italic-field { justify-content: center; }
+
+/* ===== Phase 1 FINAL: structural spacing, alignment and active-group wayfinding ===== */
+/* Scrollable CENTER lane only: gear and +Group stay in the fixed left lane;
+   native ComfyUI + and profile controls stay in their existing right lane. */
+.ctm-bar > .ctm-items { display:block; flex:1 1 auto; min-width:0; height:100%; overflow-x:auto; overflow-y:hidden; }
+.ctm-bar .ctm-items-inner {
+  display:flex; align-items:center; gap:var(--ctm-gap,4px);
+  min-width:100%; width:max-content; height:100%; box-sizing:border-box;
+}
+.ctm-bar[data-tab-alignment="left"] .ctm-items-inner { justify-content:flex-start; }
+.ctm-bar[data-tab-alignment="center"] .ctm-items-inner { justify-content:center; }
+.ctm-bar[data-tab-alignment="right"] .ctm-items-inner { justify-content:flex-end; }
+/* A nested group must never add a second terminal gap. One root boundary = one gap,
+   regardless of how many descendant groups are expanded. */
+.ctm-bar .ctm-group-contents, .ctm-bar > .ctm-items .ctm-group-contents {
+  margin:0 !important; padding:0 !important; border:0 !important;
+  background:transparent !important; box-shadow:none !important;
+}
+.ctm-bar .ctm-items-inner > .ctm-group:has(> .ctm-group-contents) {
+  margin-right:var(--ctm-content-gap,6px);
+}
+/* The owner and EVERY ancestor of the active workflow share one subtle lift.
+   Expand/collapse does not change membership. Preserve all custom colors, borders,
+   shadows and native dirty markers: activity only draws a translucent overlay.
+   No active dots, text underlines, extra frames or glow effects. */
+.ctm-bar .ctm-group-label,
+.ctm-individual-preview .ctm-group-label { position: relative; }
+.ctm-bar .ctm-group-label:is(.ctm-active, .ctm-active-descendant)::before,
+.ctm-individual-preview .ctm-group-label:is(.ctm-active, .ctm-active-descendant)::before {
+  content: ''; position: absolute; inset: 1px;
+  border-radius: inherit; background: rgba(255, 255, 255, .085);
+  pointer-events: none; z-index: 0;
+}
+.ctm-bar .ctm-group-label:is(.ctm-active, .ctm-active-descendant) > *,
+.ctm-individual-preview .ctm-group-label:is(.ctm-active, .ctm-active-descendant) > * {
+  position: relative; z-index: 1;
+}
+/* Physical centering: left overlay action / right close never consume text width. */
+.ctm-bar .ctm-tab { position:relative; isolation:isolate; }
+.ctm-bar .ctm-tab-main,
+.ctm-bar .ctm-tab.ctm-themed-item .ctm-tab-main {
+  width:100%; min-width:0; height:100%; box-sizing:border-box;
+  padding-inline:30px !important; text-align:center !important;
+  overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+}
+.ctm-bar .ctm-tab-group-button {
+  position:absolute; z-index:2; left:3px; right:auto; top:50%; transform:translateY(-50%);
+  width:22px; height:23px; border:0; border-radius:5px;
+  padding:0; flex:none; opacity:0 !important; visibility:hidden;
+  background:transparent !important;
+  color:var(--ctm-item-text,var(--ctm-accent,#a18eff)) !important;
+  transition:opacity 110ms ease,background-color 110ms ease;
+  font:600 16px/1 system-ui,sans-serif !important;
+}
+.ctm-bar .ctm-tab:hover .ctm-tab-group-button,
+.ctm-bar .ctm-tab-group-button:focus-visible {
+  opacity:.80 !important; visibility:visible;
+  background:color-mix(in srgb,var(--ctm-accent,#a18eff) 16%,transparent) !important;
+}
+.ctm-bar .ctm-tab-group-button:hover,
+.ctm-bar .ctm-tab-group-button:focus-visible {
+  opacity:.80 !important;
+  background:color-mix(in srgb,var(--ctm-accent,#a18eff) 25%,transparent) !important;
+}
+.ctm-bar .ctm-tab-close {
+  position:absolute; right:3px; top:50%; transform:translateY(-50%);
+  display:flex; justify-content:center; align-items:center;
+  width:23px; height:24px; padding:0; z-index:2;
+}
+@media (hover:none) {
+  .ctm-bar .ctm-tab-group-button { opacity:0 !important; visibility:hidden; }
+  .ctm-bar .ctm-tab:focus-within .ctm-tab-group-button { opacity:.8 !important;visibility:visible; }
+}
+/* Theme field and category alignment is consistent and scannable. */
+.ctm-popover.ctm-theme-studio .ctm-popover-title,
+.ctm-popover.ctm-theme-studio .ctm-section-title { text-align:center; width:100%; }
+.ctm-popover.ctm-theme-studio .ctm-popover-header .ctm-popover-dismiss { margin-left:-25px; z-index:1; }
+.ctm-popover .ctm-refined-field > select.ctm-theme-select,
+.ctm-popover .ctm-theme-row > select.ctm-theme-select { text-align:center; text-align-last:center; }
+.ctm-popover .ctm-preset-tools {
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;
+  margin-top:10px;
+}
+.ctm-popover .ctm-preset-tools > .ctm-action {
+  padding:8px 6px;min-width:0;text-align:center;
+}
+.ctm-popover .ctm-preset-file[hidden] { display:none; }
+.ctm-popover .ctm-effect-card.ctm-layout-alignment > select.ctm-theme-select { width:100%; }
+/* A terminal group has no next category, therefore no trailing boundary padding. */
+.ctm-bar .ctm-items-inner > .ctm-group:last-child { margin-right:0; }
+
+/* Full-width control rows use precisely the same two equal columns as all other fields. */
+.ctm-popover .ctm-refined-field.ctm-refined-wide-select { grid-column:1 / -1; }
+.ctm-popover .ctm-refined-field.ctm-refined-wide-select .ctm-refined-field-header { justify-content:center; }
+.ctm-popover .ctm-refined-field.ctm-refined-wide-select > select { width:100%; height:33px; align-self:center; }
+
+/* Optional navigation arrows for overflowing workflow/group lanes.
+   Hidden entirely when the content fits; the settings gear and +Group do not move. */
+.ctm-bar > .ctm-scroll-arrow {
+  display: none; align-items:center; justify-content:center; flex:0 0 24px;
+  width:24px; height:27px; box-sizing:border-box;
+  padding:0; margin:0; border:1px solid #8885; border-radius:7px;
+  background:transparent; color:var(--text-primary,#ddd); font-size:21px !important;
+  line-height:1; opacity:.75;
+}
+.ctm-bar.ctm-has-overflow > .ctm-scroll-arrow { display:inline-flex; }
+.ctm-bar > .ctm-scroll-arrow:not(:disabled):hover { background:#8883; opacity:1; }
+.ctm-bar > .ctm-scroll-arrow:disabled { opacity:.25; cursor:default; }
+
+
+/* ===== Phase 1: compact centered editors, full palette & mirrored right layout ===== */
+/* Keep the dismiss X in the upper-right while centering only the heading/text. */
+.ctm-popover.ctm-centered-editor { text-align: center; }
+.ctm-popover.ctm-centered-editor .ctm-popover-header {
+  position: relative; display: flex; justify-content:center; align-items:center;
+  min-height: 26px; padding: 0 28px; margin-bottom: 12px;
+}
+.ctm-popover.ctm-centered-editor .ctm-popover-title {
+  width: 100%; max-width:100%; text-align:center; line-height:1.35;
+}
+.ctm-popover.ctm-centered-editor .ctm-popover-dismiss {
+  position: absolute; top: 0; right: 0; margin: 0; z-index:1;
+}
+.ctm-popover.ctm-centered-editor .ctm-hint,
+.ctm-popover.ctm-centered-editor .ctm-storage-status,
+.ctm-popover.ctm-centered-editor .ctm-storage-diagnostic {
+  text-align:center; overflow-wrap:anywhere;
+}
+.ctm-popover.ctm-centered-editor .ctm-layout-actions .ctm-action,
+.ctm-popover.ctm-centered-editor > .ctm-action,
+.ctm-popover.ctm-centered-editor .ctm-group-tools .ctm-action { text-align:center; }
+.ctm-popover.ctm-centered-editor .ctm-choice {
+  display:flex; text-align:center; justify-content:center;
+}
+.ctm-popover.ctm-centered-editor .ctm-customize-launch { text-align:center; }
+.ctm-popover.ctm-centered-editor .ctm-custom-color-label {
+  display:block; width:100%; text-align:center; margin:11px 0 5px;
+  font-weight:500;
+}
+.ctm-popover.ctm-centered-editor .ctm-color-picker {
+  display:block; margin:0 auto 14px; width:58px; height:37px;
+}
+.ctm-popover.ctm-group-editor .ctm-group-name-label {
+  display:block; width:100%; margin:12px 0 8px; text-align:center;
+  line-height:1.4; min-height:17px; position:static;
+}
+.ctm-popover.ctm-group-editor > input[type="text"] {
+  display:block; position:static; width:100%; margin:0 0 13px; height:36px;
+  text-align:center; line-height:normal;
+}
+.ctm-popover.ctm-group-editor > label:not(.ctm-group-name-label) {
+  display:block; text-align:center; margin: 10px 0 6px;
+}
+.ctm-popover.ctm-group-editor .ctm-palette,
+.ctm-popover.ctm-centered-editor .ctm-palette {
+  display:grid; grid-template-columns:repeat(8,25px); gap:7px 6px;
+  justify-content:center; margin:10px auto 14px; width:100%;
+}
+.ctm-popover.ctm-centered-editor .ctm-swatch { width:25px; height:25px; }
+.ctm-popover.ctm-centered-editor .ctm-group-tools { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.ctm-popover.ctm-centered-editor .ctm-group-tools .ctm-action { min-width:0; }
+.ctm-popover.ctm-centered-editor .ctm-popover-actions { justify-content:center; }
+.ctm-popover.ctm-centered-editor .ctm-popover-actions .ctm-danger { margin-right:auto; }
+.ctm-popover.ctm-storage-editor .ctm-layout-actions > button { width:100%; text-align:center; }
+.ctm-popover.ctm-centered-editor .ctm-storage-diagnostic[hidden] { display:none !important; }
+
+/* Mirror groups on right alignment: first logical group sits at the far RIGHT;
+   expanded contents extend LEFT, so a long first group doesn't push it away. */
+.ctm-bar[data-tab-alignment="right"] .ctm-items-inner {
+  flex-direction:row-reverse; justify-content:flex-start;
+}
+.ctm-bar[data-tab-alignment="right"] .ctm-group,
+.ctm-bar[data-tab-alignment="right"] .ctm-group-contents,
+.ctm-bar[data-tab-alignment="right"] .ctm-subgroups {
+  flex-direction:row-reverse;
+}
+.ctm-bar[data-tab-alignment="right"] .ctm-group-label { flex-direction:row-reverse; }
+.ctm-bar[data-tab-alignment="right"] .ctm-items-inner > .ctm-group:has(> .ctm-group-contents) {
+  margin-right:0; margin-left:var(--ctm-content-gap,6px);
+}
+.ctm-bar[data-tab-alignment="right"] .ctm-items-inner > .ctm-group:last-child { margin-left:0; }
+@media (max-width:360px) {
+  .ctm-popover.ctm-group-editor .ctm-palette { grid-template-columns:repeat(8, minmax(0,25px)); gap:5px 4px; }
+}
+
+/* Optional restore prompt; the existing tab bar and native ComfyUI dialogs are untouched. */
+.ctm-restore-offer {
+  position: fixed;
+  z-index: 100010;
+  top: max(64px, env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  box-sizing: border-box;
+  width: min(390px, calc(100vw - 24px));
+  padding: 16px;
+  border: 1px solid #8a80ab88;
+  border-radius: 12px;
+  background: #1d1a2a;
+  color: #f4f0fd;
+  box-shadow: 0 12px 35px #0008;
+  font: 13px/1.45 system-ui, sans-serif;
+  text-align: center;
+}
+.ctm-restore-heading { margin: 0 0 9px; font-size: 15px; font-weight: 650; }
+.ctm-restore-message { margin: 0 0 8px; }
+.ctm-restore-note { margin: 0 0 10px; opacity: .75; font-size: 11px; }
+.ctm-restore-status { margin: 5px 0 10px; color: #c9bbff; font-size: 11px; }
+.ctm-restore-status:empty { display: none; }
+.ctm-restore-controls { display: flex; justify-content: center; gap: 8px; }
+.ctm-restore-controls .ctm-action {
+  box-sizing: border-box;
+  min-width: 100px;
+  padding: 8px 13px;
+  color: inherit;
+  border: 1px solid #89849870;
+  border-radius: 7px;
+  background: #383544;
+  cursor: pointer;
+  font: inherit;
+}
+.ctm-restore-controls .ctm-primary { background: #6552aa; border-color: #9d8cf0; }
+.ctm-restore-controls .ctm-action:disabled { opacity: .55; cursor: not-allowed; }
+.ctm-restore-controls .ctm-action:focus-visible { outline: 2px solid #c0aeff; outline-offset: 2px; }
+
+/* Individual Customize: one draft, compact Basic/Advanced, realistic scoped preview. */
+.ctm-popover.ctm-individual-editor {
+  width: 440px; max-width: calc(100vw - 16px); max-height: calc(100dvh - var(--ctm-dialog-top,8px) - 8px);
+  display: flex; flex-direction: column; padding: 0; overflow: hidden;
+}
+.ctm-individual-editor > .ctm-popover-header { flex: 0 0 auto; margin: 0; padding: 14px 16px 8px; }
+.ctm-individual-body { min-height: 0; flex: 1 1 auto; overflow-y: auto; overflow-x: hidden; padding: 0 16px 12px; scrollbar-width: thin; overflow-anchor: none; overscroll-behavior: contain; }
+.ctm-individual-editor .ctm-individual-preview-section { padding: 4px 0 12px; }
+.ctm-individual-editor > .ctm-individual-preview-section {
+  flex: 0 0 auto; margin: 0 16px; min-width: 0;
+  border-bottom: 1px solid color-mix(in srgb,var(--ctm-popover-fg,#fff) 18%,transparent);
+}
+.ctm-individual-preview-section[data-preview-mode="compact"] { padding: 4px 0 8px; }
+.ctm-individual-preview-section[data-preview-mode="compact"] > .ctm-section-title { display: none; }
+.ctm-individual-editor .ctm-individual-preview-section[data-preview-mode="compact"] .ctm-individual-preview {
+  min-height: 0; padding: 6px; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px;
+}
+.ctm-individual-editor .ctm-individual-preview-section[data-preview-mode="compact"] .ctm-individual-preview > :is(.ctm-group-label,.ctm-tab) {
+  width: 100%; min-width: 0;
+}
+.ctm-individual-preview-section[data-preview-mode="compact"] .ctm-individual-preview[data-tab-alignment="right"] > .ctm-group-label { order: 2; }
+.ctm-individual-preview-section[data-preview-mode="compact"] .ctm-individual-preview[data-tab-alignment="right"] > .ctm-tab { order: 1; }
+.ctm-preview-scroll-spacer { flex: 0 0 auto; pointer-events: none; }
+.ctm-individual-editor .ctm-individual-preview-section > .ctm-section-title { text-align: center; margin-bottom: 8px; }
+.ctm-individual-editor .ctm-individual-preview {
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px;
+  width: 100%; min-width: 0; min-height: 82px; padding: 16px 12px;
+  background: color-mix(in srgb, var(--ctm-popover-fg,#fff) 4%,var(--ctm-popover-bg,#1c1d23));
+  border: 1px solid color-mix(in srgb, var(--ctm-popover-fg,#fff) 22%,transparent); border-radius: 9px;
+}
+.ctm-individual-preview[data-tab-alignment="right"] { flex-direction: row-reverse; }
+.ctm-individual-editor .ctm-individual-preview > .ctm-group-label,
+.ctm-individual-editor .ctm-individual-preview > .ctm-tab {
+  flex: 0 1 auto; max-width: 100%; min-width: min(130px,100%); min-height: 31px;
+}
+.ctm-individual-preview .ctm-group-name,
+.ctm-individual-preview .ctm-tab-main {
+  min-width: 0; display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ctm-individual-preview .ctm-tab-main { display: block; line-height: var(--ctm-tab-height,31px); }
+.ctm-individual-editor .ctm-individual-section { padding: 12px 0 4px; border-top: 1px solid #8884; }
+.ctm-individual-editor .ctm-section-title { margin: 0 0 8px; }
+.ctm-individual-editor .ctm-hint { margin: 0 0 8px; font-size: 11px; }
+.ctm-individual-editor .ctm-individual-field,
+.ctm-individual-editor .ctm-individual-columns {
+  display: grid; grid-template-columns: minmax(0,1fr) 52px minmax(84px,112px);
+  align-items: center; column-gap: 8px; margin: 6px 0; min-width: 0; font-size: 12px; line-height: 1.35;
+}
+.ctm-individual-editor .ctm-individual-columns { font-size: 10px; opacity: .75; margin-top: 12px; }
+.ctm-individual-columns > :nth-child(2) { text-align: center; }
+.ctm-individual-editor .ctm-individual-field > span { min-width: 0; overflow-wrap: anywhere; }
+.ctm-individual-editor .ctm-individual-field:not(.ctm-inheritance-field) > span::after {
+  content: 'Inherited'; display: block; font-size: 10px; opacity: .7;
+}
+.ctm-individual-editor .ctm-individual-field[data-overridden="true"] > span::after { content: 'Custom'; }
+.ctm-individual-editor .ctm-individual-field > input[type="checkbox"] { justify-self: center; margin: 0; width: 15px; height: 15px; }
+.ctm-individual-editor .ctm-individual-field > :is(select,input[type="color"]) { width: 100%; height: 32px; min-width: 0; }
+.ctm-individual-editor .ctm-individual-field > :disabled { opacity: .48; }
+.ctm-individual-editor .ctm-inheritance-field { grid-template-columns: minmax(0,1fr) 24px; min-height: 30px; }
+.ctm-individual-editor .ctm-individual-advanced { border-top: 1px solid #8884; margin-top: 10px; }
+.ctm-individual-advanced > summary {
+  display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 12px 0;
+  font-size: 12px; font-weight: 600; list-style: none;
+}
+.ctm-individual-advanced > summary::-webkit-details-marker { display: none; }
+.ctm-individual-advanced > summary::after { content: '▾'; margin-left: auto; }
+.ctm-individual-advanced[open] > summary::after { content: '▴'; }
+.ctm-individual-advanced .ctm-advanced-count { font-size: 10px; font-weight: 400; opacity: .7; }
+.ctm-individual-editor > .ctm-popover-actions {
+  flex: 0 0 auto; margin: 0; padding: 12px 16px; border-top: 1px solid #8884;
+  display: grid; grid-template-columns: 1.65fr 1fr 1fr; gap: 8px;
+}
+.ctm-individual-editor > .ctm-popover-actions .ctm-action { min-width: 0; min-height: 34px; margin: 0; line-height: 1.3; }
+@media (max-width: 360px) {
+  .ctm-individual-editor .ctm-individual-field:not(.ctm-inheritance-field),
+  .ctm-individual-editor .ctm-individual-columns { grid-template-columns: minmax(0,1fr) 44px 104px; column-gap: 6px; }
+  .ctm-individual-editor > .ctm-popover-actions { grid-template-columns: 1fr 1fr; }
+  .ctm-individual-editor > .ctm-popover-actions .ctm-action:first-child { grid-column: 1 / -1; }
+}
+
+/* Storage uses intentional internal scrolling on short windows. */
+.ctm-popover.ctm-storage-editor { max-height: calc(100dvh - 16px); overflow-y: auto; overflow-x: hidden; }

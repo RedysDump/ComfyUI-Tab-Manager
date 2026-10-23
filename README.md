@@ -1,129 +1,119 @@
 # ComfyUI Tab Manager
 
-<img width="1672" height="941" alt="Picture" src="https://github.com/user-attachments/assets/ed9b1f8e-fecc-4043-9fb4-0a860fff91ef" />
+<img width="1672" height="941" alt="ComfyUI Tab Manager showcase" src="https://github.com/user-attachments/assets/ed9b1f8e-fecc-4043-9fb4-0a860fff91ef" />
 
+**A Chrome-style workflow tab organizer for ComfyUI.** Create color-coded groups, organize workflows into nested subgroups, and customize the appearance of your tabs—all directly in ComfyUI's top workflow bar.
 
-**Organize your open ComfyUI workflow tabs directly in the top tab bar.** Create color-coded groups and nested subgroups, collapse groups, and move workflows between groups without changing your workflow files.
-
+### Showcase video
 
 https://github.com/user-attachments/assets/cbbdbf18-35fa-4bd3-9bd3-ff8c88685d30
 
+**Version:** 1.1.0  
+**Type:** ComfyUI frontend extension with local server-backed settings  
+**Dependencies:** ComfyUI; no additional Python packages required
 
+## What's new in v1.1.0
 
+- **Theme Studio:** Customize colors, typography, borders, spacing and more with a live preview and seven built-in themes: Classic, Minimal, Soft, Neon, Tropical, Ocean and Library.
+- **Personalize groups and tabs:** Apply individual styles to a group or workflow tab, with per-setting inheritance from your global theme.
+- **Flexible theme application:** Apply a theme to tabs, groups or both, while choosing whether to preserve or replace individual customizations.
+- **Theme presets:** Save your own themes as JSON presets and import them whenever you like.
+- **Layout import and export:** Save your entire tab organization as a JSON file and restore it later.
+- **Shared layout storage:** Save groups and appearance settings in your ComfyUI user directory. The same layout can be used across browsers connected to the same ComfyUI server and user profile.
+- **Restore saved tabs:** Optionally reopen previously saved workflow tabs when supported by your ComfyUI frontend.
+- **Improved navigation:** Left, center or right tab alignment, scrolling, overflow navigation and automatic reveal of the active workflow.
+- **Nested group highlighting:** The active workflow highlights its containing group and all parent groups, even across multiple nesting levels.
+- **Refined interface:** More compact menus, improved group controls and a cleaner, consistent tab bar.
 
-**Version:** 1.0.1  
-**Type:** Frontend extension for ComfyUI  
-**Dependencies:** None beyond ComfyUI
+For a complete list of changes, see the [changelog](CHANGELOG.md).
 
 ## Features
 
-- **Custom groups:** Create, rename, recolor, and delete groups with your own names.
-- **Nested subgroups:** Organize groups inside other groups and expand or collapse each level.
-- **Drag-and-drop workflows:** Move open workflow tabs into groups without closing them.
-- **Reorder groups:** Drag a group to the left or right edge of another group to change their order.
-- **Nest groups:** Drop a group onto the center of another group to turn it into a subgroup.
-- **Top-level control:** Move subgroups back to the main tab bar.
-- **Adaptive Ungrouped section:** Only shown when at least one open workflow is not assigned to a group.
-- **Customizable + Group button:** Right-click **+ Group** to select a color or restore the default appearance.
-- **Persistent layout:** Saves groups, names, colors, hierarchy, tab assignments, and collapsed states in browser local storage.
-- **ComfyUI workflow actions:** Right-click a workflow tab to access native Rename, Duplicate, Bookmarks, Save, Save As, Export, Export (API), and Clear Workflow. **Close Tab**, **Close Tabs to Left**, **Close Tabs to Right**, and **Close Other Tabs** are hidden and blocked for safety in the grouped bar.
-- **Move-to-group popup:** Click the small colored group icon on a workflow tab (or Shift+right-click) to assign it to a group. The **×** in its header only dismisses the popup.
-- **Readable long titles:** Long workflow and group names are truncated visually and remain available in tooltips.
-- **Native workflow controls:** Uses ComfyUI's original tab actions for switching and closing workflows, including unsaved-change confirmations. Middle-click any workflow tab to close that tab only.
-
-## Compatibility
-
-ComfyUI Tab Manager targets the **top workflow tab bar** of the modern ComfyUI frontend. It has been confirmed working with **ComfyUI Frontend 1.55.14**. Other frontend versions may change the tab bar structure and are not yet guaranteed to be compatible.
-
-The extension does not add image-processing nodes and does not require Python packages beyond ComfyUI. It is independent of your GPU and image-generation model.
+- **Groups and subgroups:** Create, rename, recolor, reorder, nest, collapse and expand groups.
+- **Drag and drop:** Organize open workflow tabs and move groups into or out of nested hierarchies.
+- **Adaptive Ungrouped section:** Appears only when one or more open workflows aren't assigned to a group.
+- **Custom + Group button:** Right-click **+ Group** to change its color.
+- **Workflow controls:** Use the tab's **⋯** menu or **Shift + right-click** to move a workflow between groups. Standard ComfyUI workflow context-menu actions remain available.
+- **Native tab behavior:** Click to switch workflows and use **×** or middle-click to close an individual tab.
+- **Clear titles:** Long tab and group names are shortened visually, with full names available on hover.
+- **Persistent organization:** Keep your groups, layout and customizations after restarting ComfyUI.
 
 ## Installation
 
-### ComfyUI Manager / Registry
+### ComfyUI Manager
 
-Once the package is available in the Comfy Registry, search for **ComfyUI Tab Manager** in ComfyUI Manager, install it, and restart ComfyUI.
+1. Open **ComfyUI Manager** and search for **ComfyUI Tab Manager**.
+2. Install the extension.
+3. Restart ComfyUI and refresh your browser (`Ctrl + F5`).
 
 ### Manual installation
 
-1. Stop ComfyUI.
-2. Clone or download this repository into `ComfyUI/custom_nodes/ComfyUI-Tab-Manager/`.
-3. Start ComfyUI again.
-4. Refresh the browser using **Ctrl+F5**.
-5. Use **+ Group** in the top workflow tab bar.
+Clone the repository into your ComfyUI `custom_nodes` directory:
 
 ```bash
 cd ComfyUI/custom_nodes
 git clone https://github.com/RedysDump/ComfyUI-Tab-Manager.git
 ```
 
+Restart ComfyUI, then refresh the browser (`Ctrl + F5`). The **+ Group** button and a settings gear will appear in the top workflow tab bar.
 
-Expected folder structure:
+If you've installed an older version under a different folder name (such as `ComfyUI-ChromeTabGroups`), remove that older copy before starting ComfyUI to avoid loading the extension twice.
 
-```text
-ComfyUI/
-└── custom_nodes/
-    └── ComfyUI-Tab-Manager/
-        ├── __init__.py
-        ├── pyproject.toml
-        ├── README.md
-        ├── LICENSE
-        └── web/
-            ├── tab-manager.js
-            └── tab-manager.css
-```
-
-## Usage
+## How to use
 
 | Action | How |
 | --- | --- |
-| Create a group | Left-click **+ Group** |
-| Customize the create button | Right-click **+ Group** |
-| Reset the create button color | **+ Group** → right-click → **Reset to Default** |
-| Rename or recolor a group | Right-click its group header |
-| Create a nested group | Right-click a group → **Add Subgroup** |
-| Expand or collapse a group | Left-click its header |
-| Assign an open workflow | Drag the workflow tab onto a group |
-| Reorder a group | Drag its header to the left/right edge of another group |
-| Nest a group | Drag its header onto the center of another group |
-| Return a subgroup to the top level | Right-click the subgroup → **Top Level** |
-| Move a workflow to another group | Click the group icon on its tab → choose a group |
-| Remove a workflow from its group | Click the group icon on its tab → **Ungrouped** |
-| Open ComfyUI workflow actions | Right-click its tab normally |
-| Open Move to Group by keyboard/mouse | Shift + right-click its tab |
-| Dismiss the group menu | Click **×** in its top-right corner (does not close the tab) |
-| Close one workflow tab | Click the **×** on its tab, or middle-click anywhere on the tab (ComfyUI handles unsaved-change warnings) |
-| Delete a group | Right-click the group → **Delete** |
+| Create a group | Click **+ Group** |
+| Change the + Group button color | Right-click **+ Group** |
+| Add a subgroup | Right-click a group → **Add Subgroup** |
+| Edit a group | Right-click its header → **Customize Group** |
+| Expand or collapse a group | Click the group header |
+| Reorder or nest groups | Drag a group before, after or onto another group |
+| Move a subgroup to the main bar | Group menu → **Top Level** |
+| Move a workflow to another group | Hover over its tab → **⋯** → choose a group |
+| Edit a workflow tab's appearance | Workflow tab menu → **Customize Tab** |
+| Open the global Theme Studio | Settings gear → **Customize Theme** |
+| Apply a theme | Choose whether to style tabs, groups or both |
+| Save or load a custom theme | Theme Studio → **Save as JSON Preset** / **Import JSON** |
+| Export/import your layout | Settings gear → **Layout Storage & Backup** |
+| Restore saved workflow tabs | Settings gear → **Restore Saved Workflow Tabs** |
 
-Deleting a group does **not** delete the underlying workflow files. Its nested groups are preserved and moved up one level.
+Deleting a group does **not** delete its workflow files. Nested subgroups are preserved and moved up one level.
 
-## Data and privacy
+## Layout storage and backups
 
-Settings are stored locally in your browser using `localStorage` and are scoped to the ComfyUI website origin (host and port). They are not synchronized between browsers or browser profiles. Changing the host or clearing browser data can make the saved groups unavailable.
+Your layout is saved in the selected ComfyUI user directory, typically:
 
-ComfyUI Tab Manager does not edit, rename, move, or delete workflow JSON files. It does not send group settings to an external service.
+```text
+ComfyUI/user/default/ComfyUI-Tab-Manager/settings.json
+```
 
-### Updating from earlier versions
+A previous settings backup is also retained on the server. Browser storage acts as a fallback if the server is temporarily unavailable.
 
-The extension recognizes the local settings created by previous builds and imports them automatically when no configuration exists under the current storage key. Your existing groups, colors, ordering, nested groups, and workflow assignments should remain available. Remove the old `ComfyUI-ChromeTabGroups` extension folder before installing this renamed package to avoid duplicate frontend extensions.
+Browsers connected to the **same ComfyUI server and user profile** can share the saved layout. If changes from different browsers conflict, the **Layout Storage & Backup** menu provides options to reload the server layout or apply the current layout to the server.
 
-## Troubleshooting
+**Export Layout (.json)** saves your group structure, appearance settings and references to saved workflows. It does **not** include the actual workflow JSON files. Back up those workflow files separately.
 
-- **No + Group button:** Make sure ComfyUI is using the top tab bar, not the sidebar workflow view. Restart ComfyUI and use **Ctrl+F5**.
-- **Old and new bars are conflicting:** Remove any previously installed version of the extension with a different folder name.
-- **Missing groups:** Make sure you are accessing ComfyUI using the same browser profile, host, and port as before.
-- **Need diagnostic information:** Open Developer Tools → Console and run `window.__comfyTabManagerDebug()`.
-- **Uninstall:** Stop ComfyUI, remove the `ComfyUI-Tab-Manager` directory from `custom_nodes`, restart, and refresh the browser. Native tabs are restored.
+Your tab layout is stored locally in your ComfyUI environment, not uploaded to a third-party service by this extension.
 
-## Development
+## Restoring workflow tabs
 
-The frontend is registered through `app.registerExtension`. `__init__.py` exposes the `web/` directory through `WEB_DIRECTORY`; no backend endpoints are required. The frontend detects native workflow tabs and delegates activation and closing to the original ComfyUI controls.
+Use **Save Current Open Tabs for Restore** and **Restore Saved Workflow Tabs** from the settings gear to reopen previously saved workflow tabs. The extension uses ComfyUI's supported background-opening functionality where available. Workflows that can no longer be found are skipped.
+
+This feature restores tab references, not deleted or unsaved workflow files.
+
+## Compatibility and troubleshooting
+
+ComfyUI Tab Manager is designed for the modern ComfyUI **top workflow tab bar**. The original release was confirmed with **ComfyUI Frontend 1.55.14**. Other frontend versions and extensions may affect compatibility.
+
+- **Can't see + Group?** Enable the top workflow tab bar, restart ComfyUI and hard-refresh the browser (`Ctrl + F5`).
+- **Duplicate tabs or buttons?** Check for duplicate installations inside `custom_nodes`.
+- **Groups look outdated?** Confirm that you're connected to the expected ComfyUI server and user profile; check **Layout Storage & Backup**.
+- **Storage conflict?** Choose to reload the saved server layout or apply your current layout through the storage menu.
+- **Uninstalling:** Stop ComfyUI, remove `ComfyUI-Tab-Manager` from `custom_nodes`, then restart and refresh. Your original workflow files are unaffected.
+
+The extension does not edit, rename, move or delete your workflow JSON files. Native ComfyUI tab operations remain in control of opening and closing workflows; mass-close actions are hidden in the grouped view for safety.
 
 ## License
 
-MIT License. See [LICENSE](LICENSE).
-
-**Safety:** Mass-close commands in native workflow context menus use the original ComfyUI tab order rather than the custom grouped layout and are therefore not available through Tab Manager. Use the individual tab **×** to close a workflow; the **×** in the grouping popup only dismisses that popup. Do not clear your browser site data if you need to preserve saved group assignments.
-
-### Recovering previously closed workflows
-
-Closing a workflow tab does not delete a previously saved workflow JSON. Reopen saved files from ComfyUI's **Workflows** sidebar, or check `ComfyUI/user/default/workflows` if you are using the standard user directory. Reopening a workflow with the same path restores its previous Tab Manager group assignment. Unsaved, never-saved workflows may not be recoverable, depending on your ComfyUI persistence settings and frontend version.
+Released under the [MIT License](LICENSE).
