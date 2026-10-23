@@ -12,6 +12,14 @@ https://github.com/user-attachments/assets/cbbdbf18-35fa-4bd3-9bd3-ff8c88685d30
 **Type:** ComfyUI frontend extension with local server-backed settings  
 **Dependencies:** ComfyUI; no additional Python packages required
 
+## ❤️ Support the Project
+
+ComfyUI Tab Manager is completely free and open-source!
+
+If you enjoy using it and would like to support future development, you can [buy me a coffee on Ko-fi](https://ko-fi.com/redysdump). ☕
+
+Support is entirely optional. Every feature will remain free. Thank you! ❤️
+
 ## What's new in v1.1.1
 
 - **Compatibility with newer ComfyUI frontends:** Workflow tabs now appear correctly with newer Reka UI tab components (including Frontend 1.59.0), alongside the legacy tab interface.
