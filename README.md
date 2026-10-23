@@ -125,3 +125,4 @@ The extension does not edit, rename, move or delete your workflow JSON files. Na
 ## License
 
 Released under the [MIT License](LICENSE).
+
