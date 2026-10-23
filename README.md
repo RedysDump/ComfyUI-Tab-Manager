@@ -14,7 +14,7 @@ https://github.com/user-attachments/assets/cbbdbf18-35fa-4bd3-9bd3-ff8c88685d30
 
 ## What's new in v1.1.0
 
-- **Theme Studio:** Customize colors, typography, borders, spacing and more with a live preview and seven built-in themes: Classic, Minimal, Soft, Neon, Tropical, Ocean and Library.
+- **Customize Theme:** Customize colors, typography, borders, spacing and more with a live preview and seven built-in themes: Classic, Minimal, Soft, Neon, Tropical, Ocean and Library.
 - **Personalize groups and tabs:** Apply individual styles to a group or workflow tab, with per-setting inheritance from your global theme.
 - **Flexible theme application:** Apply a theme to tabs, groups or both, while choosing whether to preserve or replace individual customizations.
 - **Theme presets:** Save your own themes as JSON presets and import them whenever you like.
