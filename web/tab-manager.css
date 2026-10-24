@@ -41,7 +41,6 @@
   border: 0; background: transparent; text-align: left; font-size: 12px !important;
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
 }
-.ctm-dirty { display: inline-block; margin-left: 5px; color: #f5b963; }
 .ctm-tab-close { opacity: 0; border: 0; background: transparent; padding: 0 7px 0 3px; height: 100%; font-size: 16px !important; }
 .ctm-tab:hover .ctm-tab-close,.ctm-selected .ctm-tab-close,.ctm-tab:focus-within .ctm-tab-close { opacity: .8; }
 .ctm-tab-close:hover { opacity: 1 !important; color: #ff9a9a !important; }
@@ -991,3 +990,19 @@
 
 /* Storage uses intentional internal scrolling on short windows. */
 .ctm-popover.ctm-storage-editor { max-height: calc(100dvh - 16px); overflow-y: auto; overflow-x: hidden; }
+
+/* ===== Unsaved workflow indicator ===== */
+/* An inset ring is used instead of border-color so per-tab custom border colours
+   and themed selected/hover rules (both !important) cannot hide it, and so the cue
+   never shifts layout. Inset shadows are not clipped by the tab bar's overflow. */
+.ctm-bar .ctm-tab.ctm-unsaved,
+.ctm-bar .ctm-tab.ctm-unsaved:hover,
+.ctm-bar .ctm-tab.ctm-unsaved.ctm-selected,
+.ctm-bar .ctm-tab.ctm-unsaved.ctm-selected:hover {
+  box-shadow: inset 0 0 0 1.5px var(--ctm-unsaved-color, #f5b963);
+}
+/* Collapsed groups hide their member tabs, so warn on the group header instead. */
+.ctm-bar .ctm-group-label.ctm-has-unsaved,
+.ctm-bar .ctm-group-label.ctm-has-unsaved:hover {
+  box-shadow: inset 0 0 0 1.5px var(--ctm-unsaved-color, #f5b963);
+}
