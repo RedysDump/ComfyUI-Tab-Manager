@@ -11,7 +11,7 @@ if (!document.querySelector('link[data-ctm-styles]')) {
 }
 
 /**
- * ComfyUI Tab Manager v1.1.1
+ * ComfyUI Tab Manager v1.2.0
  * Scope: *open* workflow tabs in the TOP bar. Group layout is stored separately in the ComfyUI user directory.
  * Supports both the legacy workflow tab DOM (Frontend 1.55.x) and the newer
  * Reka UI tabs (Frontend 1.59.x), with native actions kept intact.
@@ -23,7 +23,7 @@ if (!document.querySelector('link[data-ctm-styles]')) {
   const BACKUP_STORAGE = 'ComfyUI.TabManager.LegacyBackup.v1';
   const COLORS = ['#a593ff', '#ff779a', '#faac55', '#ffe178', '#62d6b2', '#6aaeff', '#df91e8', '#ff6969', '#a8b0c2', '#ff4fc5', '#46d5ee', '#81db5a', '#ff8d56', '#d0a4ff', '#dbd85b', '#ffffff'];
   const SELECTOR = '.workflow-tabs-container';
-  const VERSION = '1.1.1';
+  const VERSION = '1.2.0';
   const TAB_SELECTOR = '[data-testid="workflow-tab"]';
   const LEGACY_PATH_ATTR = 'data-workflow-path';
   const LOCAL_BEFORE_SERVER = 'ComfyUI.TabManager.BeforeServerBackup.v1';
@@ -1268,17 +1268,26 @@ if (!document.querySelector('link[data-ctm-styles]')) {
 
   // v1.55.x exposes paths on the native DOM; Reka Tabs (v1.59.x) does not.
   // The workflow store is the authoritative source for paths in the new UI.
+  // A workflow is unsaved when ComfyUI reports unsaved edits or when the
+  // workflow has never been persisted. Native tab markers are folded in by mapTabs().
+  function isUnsavedWorkflow(w) {
+    return !!(w?.isModified || w?.isDirty || w?.isPersisted === false);
+  }
   function storeWorkflows() {
     try {
-      const list = app.extensionManager?.workflow?.openWorkflows;
+      const store = app.extensionManager?.workflow;
+      const list = store?.openWorkflows;
       if (!Array.isArray(list)) return [];
+      // Some frontend builds expose modification state only on the active workflow.
+      const active = store?.activeWorkflow;
       return list.flatMap(w => {
         const path = typeof w?.path === 'string' ? w.path : '';
         if (!path) return [];
+        const activeModified = active && active.path === path ? !!active.isModified : false;
         return [{
           path,
           filename: typeof w.filename === 'string' && w.filename ? w.filename : path.split('/').pop(),
-          isModified: !!w.isModified,
+          isModified: !!(w.isModified || w.isDirty) || activeModified,
           isPersisted: w.isPersisted !== false
         }];
       });
@@ -1294,7 +1303,8 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     return node.querySelector('.workflow-label')?.textContent?.trim() || '';
   }
   function tabDirty(node) {
-    return !!node.querySelector('[data-testid="workflow-dirty-indicator"]');
+    // Native builds use different dirty-marker test ids; any of them counts.
+    return !!node.querySelector('[data-testid*="dirty"]');
   }
   // Mapping never invents workflow paths from filenames. Ambiguous or incomplete
   // mappings fail open to native ComfyUI tabs rather than risk wrong assignments.
@@ -1884,15 +1894,19 @@ if (!document.querySelector('link[data-ctm-styles]')) {
   }
   function tabNode(w, accent) {
     const selected = activePath() === w.path;
+    const unsaved = isUnsavedWorkflow(w);
     const node = el('div', `ctm-tab${selected ? ' ctm-selected' : ''}`);
     node.style.setProperty('--ctm-accent', state.ui.appearances.tabs[w.path]?.preserveClassicSurface || accent || '#a18eff');
-    node.title = w.path;
+    node.title = unsaved ? `${w.path} — unsaved changes` : w.path;
     node.draggable = true;
     node.dataset.path = w.path;
-    const main = button(w.filename || w.path.split('/').pop(), 'ctm-tab-main', () => openWorkflow(w.path));
-    if (w.isModified || w.isPersisted === false) {
-      const dot = el('span', 'ctm-dirty', '•'); main.append(dot);
+    // Unsaved work is shown as an amber ring on the tab border (see .ctm-unsaved).
+    // The old inline dot was clipped by the label's ellipsis on long filenames.
+    if (unsaved) {
+      node.classList.add('ctm-unsaved');
+      node.dataset.unsaved = 'true';
     }
+    const main = button(w.filename || w.path.split('/').pop(), 'ctm-tab-main', () => openWorkflow(w.path));
     const moveButton = button('⋯', 'ctm-tab-group-button', event => {
       event.preventDefault(); event.stopPropagation();
       showTabMenu(moveButton, w.path);
@@ -2104,6 +2118,16 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     // Rebuild only the custom bar, never Vue's original controls or workflow objects.
     const fragment = document.createDocumentFragment();
     const open = workflows();
+    // Roll unsaved state up to ancestor groups so a collapsed group can still warn.
+    const unsavedGroupIds = new Set();
+    for (const w of open) {
+      if (!isUnsavedWorkflow(w)) continue;
+      let owner = groupFor(w.path);
+      while (owner && !unsavedGroupIds.has(owner)) {
+        unsavedGroupIds.add(owner);
+        owner = state.groups.find(g => g.id === owner)?.parentId ?? null;
+      }
+    }
     const currentActive = activePath();
     const activeOwner = currentActive ? groupFor(currentActive) : null;
     const activeChanged = currentActive !== lastRenderedActivePath;
@@ -2129,6 +2153,8 @@ if (!document.querySelector('link[data-ctm-styles]')) {
       });
       title.style.setProperty('--ctm-color', group.color);
       applyGroupActivity(title,group.id,activity);
+      // Collapsed groups hide their tabs; surface hidden unsaved work on the header.
+      title.classList.toggle('ctm-has-unsaved', isCollapsed && unsavedGroupIds.has(group.id));
       title.title = `${group.name} (${descendantCount(group.id)}) • Drag: left/right to reorder, center to nest • Right-click to edit`;
       title.setAttribute('aria-expanded', String(!isCollapsed));
       title.setAttribute('aria-label', `${group.name}, ${descendantCount(group.id)} Workflows, ${isCollapsed ? 'collapsed' : 'expanded'}${containsActiveWorkflow ? ', contains active workflow' : containsActiveDescendant ? ', contains active descendant workflow' : ''}`);
@@ -2414,6 +2440,7 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     window.__comfyTabManagerDebug = () => ({
       version: VERSION, detectionMode,
       mappedTabCount: workflows().length,
+      unsavedPaths: workflows().filter(isUnsavedWorkflow).map(w => w.path),
       storeWorkflowCount: storeWorkflows().length,
       syncStatus, syncReady, dirty, conflict, serverRevision, lastServerCheck,
       nativeTabCount: document.querySelectorAll('[data-testid="workflow-tab"]').length,
