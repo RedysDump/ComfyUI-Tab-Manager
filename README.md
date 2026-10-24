@@ -8,7 +8,7 @@
 
 https://github.com/user-attachments/assets/cbbdbf18-35fa-4bd3-9bd3-ff8c88685d30
 
-**Version:** 1.1.1  
+**Version:** 1.2.0  
 **Type:** ComfyUI frontend extension with local server-backed settings  
 **Dependencies:** ComfyUI; no additional Python packages required
 
@@ -20,7 +20,13 @@ If you enjoy using it and would like to support future development, you can [buy
 
 Support is entirely optional. Every feature will remain free. Thank you! ❤️
 
-## What's new in v1.1.1
+## What's new in v1.2.0
+
+- **See unsaved work instantly:** Any workflow tab with unsaved edits—or a workflow that has never been saved—now shows a persistent amber ring around its border, so you can tell at a glance which tabs still need saving. The ring stays visible with long filenames, custom tab borders and every theme.
+- **Collapsed groups warn you too:** If a collapsed group hides a tab with unsaved work, the group header shows the same amber ring.
+- **Broader dirty-state detection:** Unsaved state is also read from `isDirty` and from the active workflow, for frontend builds that do not expose `isModified` on every open workflow.
+
+## Highlights from v1.1.1
 
 - **Compatibility with newer ComfyUI frontends:** Workflow tabs now appear correctly with newer Reka UI tab components (including Frontend 1.59.0), alongside the legacy tab interface.
 - **Reliable workflow switching:** Fixed tab selection across both UI generations, including a regression that could unintentionally close workflow tabs in older frontends.
@@ -120,7 +126,7 @@ This feature restores tab references, not deleted or unsaved workflow files.
 
 ## Compatibility and troubleshooting
 
-ComfyUI Tab Manager is designed for the modern ComfyUI **top workflow tab bar**. Version 1.1.1 has been tested with **ComfyUI Frontend 1.55.18** and **1.59.0**. Other frontend versions and extensions may behave differently.
+ComfyUI Tab Manager is designed for the modern ComfyUI **top workflow tab bar**. Version 1.2.0 has been tested with **ComfyUI Frontend 1.55.18** and **1.59.0**. Other frontend versions and extensions may behave differently.
 
 - **Can't see + Group?** Enable the top workflow tab bar, restart ComfyUI and hard-refresh the browser (`Ctrl + F5`).
 - **Duplicate tabs or buttons?** Check for duplicate installations inside `custom_nodes`.

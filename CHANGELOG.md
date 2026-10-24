@@ -2,6 +2,19 @@
 
 Notable changes to **ComfyUI Tab Manager** are listed below.
 
+## [1.2.0] - 2026-10-24
+
+### Added
+
+- **Unsaved workflow highlight:** A tab with unsaved edits (or a workflow that has never been saved) now shows a persistent amber ring around its border, so unsaved work is visible at a glance even when long filenames are truncated.
+- **Collapsed-group warning:** A collapsed group whose hidden tabs contain unsaved work shows the same amber ring on its group header, so edits are never hidden by collapsing.
+- **Debug visibility:** `window.__comfyTabManagerDebug()` now reports `unsavedPaths`.
+
+### Changed
+
+- The previous tiny dirty dot inside the tab label was replaced by the border ring; the dot was frequently clipped by the label's ellipsis on long filenames.
+- Unsaved state is now also read from `isDirty` and from the active workflow's modification flag, for frontend builds that do not expose `isModified` on every open workflow.
+
 ## [1.1.1] - 2026-10-23
 
 ### Fixed
