@@ -39,12 +39,19 @@ def storage_path(user_directory: str, user_id: str = "default") -> Path:
 
 # Whitelisted appearance properties. No raw CSS is accepted from browsers or JSON imports.
 _THEME_COLORS = ("accent", "tabBg", "hoverBg", "panelBg", "text", "strokeColor", "textShadowColor")
+_THEME_OPTIONAL_COLORS = ("groupAccent", "groupBg", "groupHoverBg", "groupCountColor")
+_DEFAULT_CONTROL_ACCENT = "#a593ff"
 _THEME_NUMBERS = {"radius": (0, 20), "gap": (0, 14), "height": (24, 42),
                   "groupTint": (0, 45), "hoverTint": (0, 65), "shadow": (0, 18),
                   "fontSize": (10, 22), "stroke": (0, 3), "textShadow": (0, 12),
                   "shadowOpacity": (0, 100), "textShadowOpacity": (0, 100),
                   "groupContentGap": (0, 24), "barHeight": (34, 88),
                   "widthPadding": (4, 28), "tabBgOpacity": (0, 100)}
+
+
+_CLASSIC_PROPERTIES = frozenset(('accent', 'groupAccent', 'groupCountColor', 'tabBg', 'hoverBg', 'panelBg', 'text', 'outline',
+    'fontFamily', 'fontWeight', 'italic', 'fontSize', 'radius', 'gap', 'groupContentGap',
+    'widthPadding', 'tabBgOpacity', 'groupTint', 'hoverTint', 'tabAlignment', 'groupBg', 'groupHoverBg'))
 
 
 def validate_theme(theme: Any) -> dict | None:
@@ -54,9 +61,16 @@ def validate_theme(theme: Any) -> dict | None:
         raise InvalidLayout("Invalid theme settings")
     old_required = {"accent", "tabBg", "hoverBg", "panelBg", "text", "outline",
                     "radius", "gap", "height", "groupTint", "hoverTint", "shadow", "fontSize"}
-    expected = {*_THEME_COLORS, *_THEME_NUMBERS, "outline", "fontFamily", "fontWeight", "italic", "shadowEnabled", "textShadowEnabled", "tabAlignment"}
+    expected = {*_THEME_COLORS, *_THEME_OPTIONAL_COLORS, *_THEME_NUMBERS, "outline", "fontFamily", "fontWeight", "italic", "shadowEnabled", "textShadowEnabled", "tabAlignment", "classicOverrides"}
     if not old_required.issubset(theme) or set(theme) - expected:
         raise InvalidLayout("Unknown or missing theme setting")
+    if 'classicOverrides' in theme:
+        keys = theme['classicOverrides']
+        if (not isinstance(keys, list) or len(keys) > len(_CLASSIC_PROPERTIES)
+                or any(not isinstance(key, str) or key not in _CLASSIC_PROPERTIES for key in keys)
+                or len(set(keys)) != len(keys)):
+            raise InvalidLayout('Invalid Classic properties')
+        theme = {**theme, 'classicOverrides': sorted(keys)}
     # Validate before deriving legacy toggle defaults: malformed JSON values must
     # raise InvalidLayout rather than escaping as a TypeError during comparison.
     for key in ("shadow", "textShadow"):
@@ -73,6 +87,11 @@ def validate_theme(theme: Any) -> dict | None:
     for key in _THEME_COLORS:
         if not isinstance(theme[key], str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", theme[key]):
             raise InvalidLayout("Invalid theme color")
+    for key in _THEME_OPTIONAL_COLORS:
+        if key in theme and theme[key] is not None:
+            if not isinstance(theme[key], str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", theme[key]):
+                raise InvalidLayout(f"Invalid {key} color")
+            theme[key] = theme[key].lower()
     for key, (lo, hi) in _THEME_NUMBERS.items():
         value = theme[key]
         if type(value) is not int or not lo <= value <= hi:
@@ -184,6 +203,10 @@ def validate_layout(state: Any) -> dict:
     color = ui.get("createButtonColor")
     if color is not None and (not isinstance(color, str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", color)):
         raise InvalidLayout("Invalid create button color")
+    control_accent = ui.get("controlAccent", _DEFAULT_CONTROL_ACCENT)
+    if not isinstance(control_accent, str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", control_accent):
+        raise InvalidLayout("Invalid control accent color")
+    control_accent = control_accent.lower()
     theme = validate_theme(ui.get("theme"))
     scopes = ui.get("themeScopes")
     if scopes is None:
@@ -224,6 +247,47 @@ def validate_layout(state: Any) -> dict:
         custom_presets[name] = validate_theme(preset)
         if custom_presets[name] is None:
             raise InvalidLayout("Null custom preset")
+    raw_indicators = ui.get("indicators", {})
+    if not isinstance(raw_indicators, dict) or set(raw_indicators) - {"mode", "color", "groupChevronColor"}:
+        raise InvalidLayout("Invalid unsaved indicator settings")
+    indicator_mode = raw_indicators.get("mode", "dirty-point")
+    indicator_color = raw_indicators.get("color", "#f5b963")
+    chevron_color = raw_indicators.get("groupChevronColor")
+    if not isinstance(indicator_mode, str) or indicator_mode not in {"dirty-point", "border-glow", "mixed"}:
+        raise InvalidLayout("Invalid unsaved indicator mode")
+    if not isinstance(indicator_color, str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", indicator_color):
+        raise InvalidLayout("Invalid unsaved indicator color")
+    if chevron_color is not None and (not isinstance(chevron_color, str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", chevron_color)):
+        raise InvalidLayout("Invalid group chevron color")
+    indicators = {"mode": indicator_mode, "color": indicator_color.lower(),
+                  "groupChevronColor": chevron_color.lower() if chevron_color else None}
+    raw_preset_indicators = ui.get("customPresetIndicators", {})
+    if not isinstance(raw_preset_indicators, dict) or len(raw_preset_indicators) > 30 or set(raw_preset_indicators) - set(custom_presets):
+        raise InvalidLayout("Invalid custom preset indicator collection")
+    custom_preset_indicators = {}
+    for name, item in raw_preset_indicators.items():
+        if not isinstance(item, dict) or set(item) - {"mode", "color", "groupChevronColor"}:
+            raise InvalidLayout("Invalid custom preset indicator settings")
+        mode = item.get("mode", "dirty-point")
+        point_color = item.get("color", "#f5b963")
+        arrow_color = item.get("groupChevronColor")
+        if not isinstance(mode, str) or mode not in {"dirty-point", "border-glow", "mixed"}:
+            raise InvalidLayout("Invalid custom preset indicator mode")
+        if not isinstance(point_color, str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", point_color):
+            raise InvalidLayout("Invalid custom preset indicator color")
+        if arrow_color is not None and (not isinstance(arrow_color, str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", arrow_color)):
+            raise InvalidLayout("Invalid custom preset chevron color")
+        custom_preset_indicators[name] = {"mode": mode, "color": point_color.lower(),
+                                          "groupChevronColor": arrow_color.lower() if arrow_color else None}
+    raw_preset_control_accents = ui.get("customPresetControlAccents", {})
+    if (not isinstance(raw_preset_control_accents, dict) or len(raw_preset_control_accents) > 30
+            or set(raw_preset_control_accents) - set(custom_presets)):
+        raise InvalidLayout("Invalid custom preset control accent collection")
+    custom_preset_control_accents = {}
+    for name, value in raw_preset_control_accents.items():
+        if not isinstance(value, str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", value):
+            raise InvalidLayout("Invalid custom preset control accent")
+        custom_preset_control_accents[name] = value.lower()
     restore_paths = ui.get("restorePaths", [])
     if not isinstance(restore_paths, list) or len(restore_paths) > 300:
         raise InvalidLayout("Invalid restore workflow list")
@@ -236,11 +300,21 @@ def validate_layout(state: Any) -> dict:
         if path in seen_restore:
             raise InvalidLayout("Duplicate restore workflow path")
         seen_restore.add(path)
+    workflow_order = ui.get("workflowOrder", [])
+    if not isinstance(workflow_order, list) or len(workflow_order) > 40000:
+        raise InvalidLayout("Invalid workflow order")
+    seen_order = set()
+    for path in workflow_order:
+        if not isinstance(path, str) or not 1 <= len(path) <= 2048 or any(ord(c) < 32 for c in path):
+            raise InvalidLayout("Invalid workflow order entry")
+        if path in seen_order:
+            raise InvalidLayout("Duplicate workflow order entry")
+        seen_order.add(path)
     normalized = {
         "groups": [{"id": g["id"], "name": g["name"], "color": g["color"],
                     "collapsed": g["collapsed"], "parentId": g.get("parentId")} for g in groups],
         "assignments": assignments,
-        "ui": {"createButtonColor": color, "restorePaths": restore_paths, "theme": theme, "themeScopes": scopes, "appearances": appearances, "customPresets": custom_presets, "inheritGroupAppearance": inherited, "inheritGroupDesign": design_inherited},
+        "ui": {"createButtonColor": color, "controlAccent": control_accent, "restorePaths": restore_paths, "workflowOrder": workflow_order, "theme": theme, "themeScopes": scopes, "appearances": appearances, "customPresets": custom_presets, "customPresetIndicators": custom_preset_indicators, "customPresetControlAccents": custom_preset_control_accents, "indicators": indicators, "inheritGroupAppearance": inherited, "inheritGroupDesign": design_inherited},
     }
     if len(json.dumps(normalized, ensure_ascii=False).encode("utf-8")) > _MAX_BYTES:
         raise InvalidLayout("Layout exceeds 1 MiB")
@@ -266,13 +340,65 @@ def write_layout(path: Path, state: Any, expected_revision: str | None) -> dict:
     normalized = validate_layout(state)
     if expected_revision is not None and (not isinstance(expected_revision, str) or not re.fullmatch(r"[0-9a-f]{64}", expected_revision)):
         raise InvalidLayout("Invalid revision token")
-    data = json.dumps(normalized, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    if len(data) > _MAX_BYTES:
-        raise InvalidLayout("Layout exceeds 1 MiB")
     with _LOCK:
         current = load_layout(path)
         if current["revision"] != expected_revision:
             raise StaleRevision(current)
+        # Older clients do not send these newly introduced optional UI fields.
+        # Preserve their last validated server values instead of resetting them
+        # when such a client saves an otherwise current layout revision.
+        incoming_ui = state.get("ui", {}) if isinstance(state, dict) else {}
+        current_ui = current.get("state", {}).get("ui", {}) if current.get("state") else {}
+        if "indicators" not in incoming_ui and "indicators" in current_ui:
+            normalized["ui"]["indicators"] = current_ui["indicators"]
+        if "customPresetIndicators" not in incoming_ui and "customPresetIndicators" in current_ui:
+            normalized["ui"]["customPresetIndicators"] = {
+                name: item for name, item in current_ui["customPresetIndicators"].items()
+                if name in normalized["ui"]["customPresets"]
+            }
+        if "customPresetControlAccents" not in incoming_ui and "customPresetControlAccents" in current_ui:
+            normalized["ui"]["customPresetControlAccents"] = {
+                name: value for name, value in current_ui["customPresetControlAccents"].items()
+                if name in normalized["ui"]["customPresets"]
+            }
+        # Older clients cannot send the optional group surface color. Preserve it
+        # per scope and per still-present custom preset instead of clearing it.
+        incoming_scopes = incoming_ui.get("themeScopes")
+        if not isinstance(incoming_scopes, dict):
+            legacy_theme = incoming_ui.get("theme")
+            incoming_scopes = {"tabs": legacy_theme, "groups": legacy_theme}
+        current_scopes = current_ui.get("themeScopes", {})
+        for optional_color in _THEME_OPTIONAL_COLORS:
+            for scope in ("tabs", "groups"):
+                source_theme = incoming_scopes.get(scope)
+                current_theme = current_scopes.get(scope) if isinstance(current_scopes, dict) else None
+                normalized_theme = normalized["ui"]["themeScopes"].get(scope)
+                if (isinstance(source_theme, dict) and optional_color not in source_theme
+                        and isinstance(current_theme, dict) and current_theme.get(optional_color) is not None
+                        and isinstance(normalized_theme, dict)):
+                    normalized["ui"]["themeScopes"][scope] = {
+                        **normalized_theme, optional_color: current_theme[optional_color]}
+                    if ("classicOverrides" in normalized_theme and
+                            ("classicOverrides" not in current_theme or optional_color in current_theme["classicOverrides"])):
+                        normalized["ui"]["themeScopes"][scope]["classicOverrides"] = sorted(
+                            set(normalized_theme["classicOverrides"]) | {optional_color})
+            incoming_presets = incoming_ui.get("customPresets", {})
+            current_presets = current_ui.get("customPresets", {})
+            for name, source_theme in incoming_presets.items() if isinstance(incoming_presets, dict) else ():
+                current_theme = current_presets.get(name) if isinstance(current_presets, dict) else None
+                normalized_theme = normalized["ui"]["customPresets"].get(name)
+                if (isinstance(source_theme, dict) and optional_color not in source_theme
+                        and isinstance(current_theme, dict) and current_theme.get(optional_color) is not None
+                        and isinstance(normalized_theme, dict)):
+                    normalized["ui"]["customPresets"][name] = {
+                        **normalized_theme, optional_color: current_theme[optional_color]}
+                    if ("classicOverrides" in normalized_theme and
+                            ("classicOverrides" not in current_theme or optional_color in current_theme["classicOverrides"])):
+                        normalized["ui"]["customPresets"][name]["classicOverrides"] = sorted(
+                            set(normalized_theme["classicOverrides"]) | {optional_color})
+        data = json.dumps(normalized, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        if len(data) > _MAX_BYTES:
+            raise InvalidLayout("Layout exceeds 1 MiB")
         path.parent.mkdir(parents=True, exist_ok=True)
         temp_path = None
         try:

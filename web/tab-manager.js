@@ -11,7 +11,7 @@ if (!document.querySelector('link[data-ctm-styles]')) {
 }
 
 /**
- * ComfyUI Tab Manager v1.1.1
+ * ComfyUI Tab Manager v1.2.0
  * Scope: *open* workflow tabs in the TOP bar. Group layout is stored separately in the ComfyUI user directory.
  * Supports both the legacy workflow tab DOM (Frontend 1.55.x) and the newer
  * Reka UI tabs (Frontend 1.59.x), with native actions kept intact.
@@ -23,7 +23,20 @@ if (!document.querySelector('link[data-ctm-styles]')) {
   const BACKUP_STORAGE = 'ComfyUI.TabManager.LegacyBackup.v1';
   const COLORS = ['#a593ff', '#ff779a', '#faac55', '#ffe178', '#62d6b2', '#6aaeff', '#df91e8', '#ff6969', '#a8b0c2', '#ff4fc5', '#46d5ee', '#81db5a', '#ff8d56', '#d0a4ff', '#dbd85b', '#ffffff'];
   const SELECTOR = '.workflow-tabs-container';
-  const VERSION = '1.1.1';
+  const VERSION = '1.2.0';
+  const DEFAULT_CONTROL_ACCENT = '#a593ff';
+  const DEFAULT_INDICATORS = Object.freeze({ mode: 'dirty-point', color: '#f5b963', groupChevronColor: null });
+  const INDICATOR_MODES = Object.freeze(['dirty-point', 'border-glow', 'mixed']);
+  function normalizeIndicators(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return { ...DEFAULT_INDICATORS };
+    return {
+      mode: INDICATOR_MODES.includes(value.mode) ? value.mode : DEFAULT_INDICATORS.mode,
+      color: /^#[0-9a-fA-F]{6}$/.test(value.color) ? value.color.toLowerCase() : DEFAULT_INDICATORS.color,
+      groupChevronColor: value.groupChevronColor == null ? null : /^#[0-9a-fA-F]{6}$/.test(value.groupChevronColor) ? value.groupChevronColor.toLowerCase() : null,
+    };
+  }
+  // Browser-local view preference, deliberately outside shared layout/schema data.
+  const VIEW_STORAGE = 'ComfyUI.TabManager.TabView.v1';
   const TAB_SELECTOR = '[data-testid="workflow-tab"]';
   const LEGACY_PATH_ATTR = 'data-workflow-path';
   const LOCAL_BEFORE_SERVER = 'ComfyUI.TabManager.BeforeServerBackup.v1';
@@ -46,17 +59,39 @@ if (!document.querySelector('link[data-ctm-styles]')) {
   });
   const THEME_DEFAULTS = Object.freeze({
     accent: '#a18eff', tabBg: '#34323d', hoverBg: '#464251', panelBg: '#23232b', text: '#f0eef8',
-    outline: 'subtle', radius: 9, gap: 5, height: 31, groupTint: 13, hoverTint: 26, shadow: 0, shadowEnabled: false, textShadowEnabled: false, fontSize: 12,
+    outline: 'subtle', radius: 9, gap: 5, height: 31, groupTint: 13, hoverTint: 26, groupAccent: null, groupCountColor: null, groupBg: null, groupHoverBg: null, shadow: 0, shadowEnabled: false, textShadowEnabled: false, fontSize: 12,
     fontFamily: 'inherit', fontWeight: 600, italic: false, stroke: 0, strokeColor: '#000000', textShadow: 0, textShadowColor: '#000000', shadowOpacity: 40, textShadowOpacity: 100, groupContentGap: 6, barHeight: 34, widthPadding: 10, tabBgOpacity: 100, tabAlignment: 'left'
   });
   const THEME_COLORS = ['accent', 'tabBg', 'hoverBg', 'panelBg', 'text', 'strokeColor', 'textShadowColor'];
+  const CLASSIC_PROPERTIES = Object.freeze(['accent','groupAccent','groupCountColor','tabBg','hoverBg','groupBg','groupHoverBg','panelBg','text','outline','fontFamily','fontWeight','italic','fontSize','radius','gap','groupContentGap','widthPadding','tabBgOpacity','groupTint','hoverTint','tabAlignment']);
+  const isClassicTheme = theme => Array.isArray(theme?.classicOverrides);
+  // Legacy Classic is stored as null so existing layouts retain their original
+  // v1.0.1 appearance. Explicitly selecting Classic (or Reset) uses the visible
+  // defaults as a scoped theme instead of silently applying no styles.
+  function classicDefaultsTheme() {
+    return presetTheme('Classic');
+  }
+  function presetTheme(name) {
+    const preset = {...THEME_DEFAULTS,...THEME_PRESETS[name]};
+    return normalizeTheme({...preset, groupAccent:preset.accent, groupCountColor:preset.accent,
+      groupBg:preset.panelBg, groupHoverBg:preset.hoverBg,
+      ...(name==='Classic'?{classicOverrides:[...CLASSIC_PROPERTIES]}:{})});
+  }
+  const hasThemeProperty = (theme,key) => !!theme && (!isClassicTheme(theme) || theme.classicOverrides.includes(key));
+  function themeAlignment(scopes = effectiveThemes()) {
+    return hasThemeProperty(scopes.tabs,'tabAlignment') ? scopes.tabs.tabAlignment : hasThemeProperty(scopes.groups,'tabAlignment') ? scopes.groups.tabAlignment : 'left';
+  }
+  function groupChevronPath(isCollapsed, alignment = themeAlignment()) {
+    if (isCollapsed) return 'M4 6 L8 10 L12 6';
+    return alignment === 'right' ? 'M10 4 L6 8 L10 12' : 'M6 4 L10 8 L6 12';
+  }
   const THEME_NUMBERS = Object.freeze({ radius: [0, 20], gap: [0, 14], height: [24, 42], groupTint: [0, 45], hoverTint: [0, 65], shadow: [0, 18], fontSize: [10, 22], stroke: [0, 3], textShadow: [0, 12], shadowOpacity: [0, 100], textShadowOpacity: [0, 100], groupContentGap: [0, 24], barHeight: [34, 88], widthPadding: [4, 28], tabBgOpacity: [0, 100] });
   const DESIGN_NUMBERS = Object.freeze({borderWidth:[0,3],radius:[0,20],backgroundOpacity:[0,100]});
   const DESIGN_KEYS = Object.freeze(['background','accent','borderColor',...Object.keys(DESIGN_NUMBERS)]);
   const APPEARANCE_KEYS = Object.freeze([...DESIGN_KEYS,'background', 'text', 'fontSize', 'fontFamily', 'fontWeight', 'italic', 'stroke', 'strokeColor']);
   const FONT_FAMILIES = Object.freeze(['inherit', 'Arial', 'Verdana', 'Tahoma', 'Georgia', 'monospace']);
   const THEME_STYLE_PROPERTIES = [
-    '--ctm-accent','--ctm-tab-bg','--ctm-tab-hover','--ctm-panel-bg','--ctm-text',
+    '--ctm-accent','--ctm-tab-bg','--ctm-tab-hover','--ctm-group-bg','--ctm-group-hover-bg','--ctm-panel-bg','--ctm-text',
     '--ctm-radius','--ctm-gap','--ctm-tab-height','--ctm-group-tint','--ctm-hover-tint',
     '--ctm-outline-width','--ctm-hover-outline-width','--ctm-font-size','--ctm-font-family','--ctm-font-weight','--ctm-font-style','--ctm-stroke-width','--ctm-stroke-color','--ctm-content-gap', '--ctm-width-padding', '--ctm-tab-bg-alpha', '--ctm-tab-hover-alpha', '--ctm-tab-opacity', '--ctm-bar-height',
     // Remove obsolete inline custom properties from an older live theme.
@@ -69,6 +104,18 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     for (const key of THEME_COLORS) {
       output[key] = /^#[0-9a-fA-F]{6}$/.test(value[key]) ? value[key].toLowerCase() : (THEME_DEFAULTS[key] ?? '#000000');
     }
+    if (value.groupAccent == null) output.groupAccent = null;
+    else if (/^#[0-9a-fA-F]{6}$/.test(value.groupAccent)) output.groupAccent = value.groupAccent.toLowerCase();
+    else throw new Error('Invalid group accent color');
+    if (value.groupCountColor == null) output.groupCountColor = null;
+    else if (/^#[0-9a-fA-F]{6}$/.test(value.groupCountColor)) output.groupCountColor = value.groupCountColor.toLowerCase();
+    else throw new Error('Invalid group count color');
+    if (value.groupBg == null) output.groupBg = null;
+    else if (/^#[0-9a-fA-F]{6}$/.test(value.groupBg)) output.groupBg = value.groupBg.toLowerCase();
+    else throw new Error('Invalid group background color');
+    if (value.groupHoverBg == null) output.groupHoverBg = null;
+    else if (/^#[0-9a-fA-F]{6}$/.test(value.groupHoverBg)) output.groupHoverBg = value.groupHoverBg.toLowerCase();
+    else throw new Error('Invalid group hover color');
     for (const [key, [min, max]] of Object.entries(THEME_NUMBERS)) {
       output[key] = Number.isInteger(value[key]) && value[key] >= min && value[key] <= max ? value[key] : THEME_DEFAULTS[key];
     }
@@ -93,6 +140,11 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     output.textShadowEnabled = false;
     output.textShadowOpacity = 100;
     output.textShadowColor = '#000000';
+    if (Object.hasOwn(value,'classicOverrides')) {
+      if (!Array.isArray(value.classicOverrides) || value.classicOverrides.length > CLASSIC_PROPERTIES.length ||
+          value.classicOverrides.some(key=>!CLASSIC_PROPERTIES.includes(key)) || new Set(value.classicOverrides).size!==value.classicOverrides.length) throw new Error('Invalid Classic properties');
+      output.classicOverrides = [...value.classicOverrides].sort();
+    }
     return output;
   }
   function normalizePresets(value) {
@@ -101,6 +153,18 @@ if (!document.querySelector('link[data-ctm-styles]')) {
       .filter(([name, theme]) => typeof name === 'string' && name.length <= 48 && name.trim() &&
         !Object.hasOwn(THEME_PRESETS, name) && name !== 'Custom' && theme && typeof theme === 'object' && !Array.isArray(theme))
       .map(([name, theme]) => [name, normalizeTheme(theme)]));
+  }
+  function normalizePresetIndicators(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+    return Object.fromEntries(Object.entries(value).slice(0, 30)
+      .filter(([name]) => typeof name === 'string' && name.length <= 48 && name.trim())
+      .map(([name, indicators]) => [name, normalizeIndicators(indicators)]));
+  }
+  function normalizePresetControlAccents(value, presets = {}) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+    return Object.fromEntries(Object.entries(value).slice(0, 30)
+      .filter(([name, color]) => Object.hasOwn(presets, name) && /^#[0-9a-fA-F]{6}$/.test(color || ''))
+      .map(([name, color]) => [name, color.toLowerCase()]));
   }
   function normalizeAppearance(value) {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
@@ -141,8 +205,11 @@ if (!document.querySelector('link[data-ctm-styles]')) {
       ? (design ? individualPreview.design : individualPreview.typography)
       : !!state.ui[design ? 'inheritGroupDesign' : 'inheritGroupAppearance']?.[id];
   }
-  function inheritedAppearance(kind, key, preview = true) {
+  function inheritedAppearance(kind, key, preview = true, sourceTheme = undefined) {
     const output = {}, visited = new Set();
+    let themeAccentFallback = null;
+    const groupTheme = sourceTheme !== undefined ? sourceTheme : preview && themePreviewActive && themePreviewScope === 'groups' && kind === 'tab'
+      ? themeScopes().groups : preview ? effectiveThemes().groups : themeScopes().groups;
     let id = kind === 'tab' ? (key === '__preview__' && individualPreview?.scope === 'groups'
       ? individualPreview.id : state.assignments[key]) : state.groups.find(g => g.id === key)?.parentId;
     // Groups-only preview must leave tabs unchanged, including their inherited values.
@@ -159,11 +226,16 @@ if (!document.querySelector('link[data-ctm-styles]')) {
         for (const property of keys) {
           if (!Object.hasOwn(output, property) && Object.hasOwn(values, property)) output[property] = values[property];
         }
-        // The existing group palette is its explicit accent, not a global group theme.
-        if (sharingEnabled(id,true,preview) && !Object.hasOwn(output,'accent')) output.accent = values.accent || group.color;
+        // Share the group's visible design, never an obsolete palette hidden by
+        // an explicit global Group Accent. Explicit item accents still win.
+        if (sharingEnabled(id,true,preview) && !Object.hasOwn(output,'accent')) {
+          if (hasThemeProperty(groupTheme,'groupAccent') && groupTheme.groupAccent) themeAccentFallback = groupTheme.groupAccent;
+          else output.accent = group.color;
+        }
       }
       id = group.parentId;
     }
+    if (!Object.hasOwn(output,'accent') && themeAccentFallback) output.accent = themeAccentFallback;
     return output;
   }
   function effectiveAppearance(kind, key, preview = true) {
@@ -178,15 +250,19 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     return scoped || { tabs: state.ui?.theme || null, groups: state.ui?.theme || null };
   }
   let themePreview = null;
+  let themePreviewScopes = null;
   let themePreviewActive = false;
   let themePreviewScope = 'both';
   let themePreviewOverwrite = false;
+  let themeControlPreview = null;
+  let indicatorPreview = null;
+  function activeIndicators() { return normalizeIndicators(indicatorPreview || state.ui?.indicators); }
   function effectiveThemes() {
     const scoped = themeScopes();
     const result = { tabs: scoped.tabs, groups: scoped.groups };
     if (themePreviewActive) {
       for (const key of ['tabs', 'groups']) {
-        if (themePreviewScope === 'both' || themePreviewScope === key) result[key] = themePreview;
+        if (themePreviewScope === 'both' || themePreviewScope === key) result[key] = themePreviewScopes ? themePreviewScopes[key] : themePreview;
       }
     }
     return result;
@@ -197,7 +273,7 @@ if (!document.querySelector('link[data-ctm-styles]')) {
   }
   function themeStyles(theme) {
     if (!theme) return {};
-    return {
+    const styles = {
       '--ctm-accent': theme.accent, '--ctm-tab-bg': theme.tabBg,
       '--ctm-tab-hover': theme.hoverBg, '--ctm-panel-bg': theme.panelBg,
       '--ctm-tab-bg-alpha': colorWithOpacity(theme.tabBg, theme.tabBgOpacity),
@@ -214,20 +290,51 @@ if (!document.querySelector('link[data-ctm-styles]')) {
       '--ctm-font-style': theme.italic ? 'italic' : 'normal',
       '--ctm-stroke-width': `0px`, '--ctm-stroke-color': 'transparent',
     };
+    if (/^#[0-9a-f]{6}$/i.test(theme.groupBg || '')) styles['--ctm-group-bg'] = theme.groupBg;
+    if (/^#[0-9a-f]{6}$/i.test(theme.groupHoverBg || '')) styles['--ctm-group-hover-bg'] = theme.groupHoverBg;
+    if (!isClassicTheme(theme)) return styles;
+    const variables = {accent:['--ctm-accent'],tabBg:['--ctm-tab-bg','--ctm-tab-bg-alpha'],hoverBg:['--ctm-tab-hover','--ctm-tab-hover-alpha'],groupBg:['--ctm-group-bg'],groupHoverBg:['--ctm-group-hover-bg'],
+      panelBg:['--ctm-panel-bg'],text:['--ctm-text'],outline:['--ctm-outline-width','--ctm-hover-outline-width'],radius:['--ctm-radius'],
+      gap:['--ctm-gap'],groupContentGap:['--ctm-content-gap'],widthPadding:['--ctm-width-padding'],tabBgOpacity:['--ctm-tab-opacity'],
+      groupTint:['--ctm-group-tint'],hoverTint:['--ctm-hover-tint'],fontSize:['--ctm-font-size'],fontFamily:['--ctm-font-family'],fontWeight:['--ctm-font-weight'],italic:['--ctm-font-style']};
+    const allowed = new Set(theme.classicOverrides.flatMap(key=>variables[key] || []));
+    return Object.fromEntries(Object.entries(styles).filter(([key])=>allowed.has(key)));
   }
-  function applyElementDesign(element, override, base, sharedBackground) {
+  function applyClassicProperties(element, kind, theme, override) {
+    if (!isClassicTheme(theme)) return;
+    const individual = {tabBg:'background',hoverBg:'background',groupBg:'background',groupHoverBg:'background',text:'text',radius:'radius',outline:'borderWidth',tabBgOpacity:'backgroundOpacity',groupTint:'background',hoverTint:'background'};
+    const keys = theme.classicOverrides.filter(key=>!Object.hasOwn(override,individual[key] || key) &&
+      !(key==='accent' && (kind==='group' || override.preserveClassicSurface)));
+    element.dataset.classicProperties = keys.join(' ');
+    for (const [name,value] of Object.entries(themeStyles({...theme,classicOverrides:keys}))) element.style.setProperty(name,value);
+  }
+  function applyHoverBehavior(element, theme, override) {
+    // Interaction is independent of an explicit background; zero is a real value.
+    if (hasThemeProperty(theme,'hoverTint')) {
+      element.dataset.hoverIntensity = String(theme.hoverTint);
+      element.style.setProperty('--ctm-hover-tint',`${theme.hoverTint}%`);
+      const fixed = element.style.getPropertyValue('background');
+      if (fixed) {
+        element.style.setProperty('--ctm-fixed-background',fixed);
+        element.style.setProperty('background','var(--ctm-hover-background,var(--ctm-fixed-background))','important');
+      }
+    }
+    if (override.borderWidth === 0 || (!Object.hasOwn(override,'borderWidth') &&
+        hasThemeProperty(theme,'outline') && theme.outline === 'none')) element.dataset.noHoverBorder = 'true';
+  }
+  function applyElementDesign(element, override, base, explicitThemeText = false) {
     const has = key => Object.hasOwn(override,key);
     if (has('accent')) {
       element.style.setProperty('--ctm-accent',override.accent);
       element.style.setProperty('--ctm-color',override.accent);
     }
-    if (has('backgroundOpacity') || (sharedBackground && has('background'))) {
+    if (has('backgroundOpacity') || has('background')) {
       const background = override.background || base?.tabBg || THEME_DEFAULTS.tabBg;
       element.style.setProperty('background',colorWithOpacity(background,override.backgroundOpacity ?? base?.tabBgOpacity ?? 100),'important');
     }
     // Only choose an automatic text color for a newly inherited/custom opacity surface.
     // Explicit own or inherited typography is never replaced.
-    if (!has('text') && (has('backgroundOpacity') || (sharedBackground && has('background')))) {
+    if (!has('text') && !explicitThemeText && (has('backgroundOpacity') || has('background'))) {
       const hex = override.background || base?.tabBg || THEME_DEFAULTS.tabBg;
       const alpha = (override.backgroundOpacity ?? base?.tabBgOpacity ?? 100)/100;
       const panel = base?.panelBg || THEME_DEFAULTS.panelBg;
@@ -264,29 +371,60 @@ if (!document.querySelector('link[data-ctm-styles]')) {
 
   }
   function styleItem(element, kind, key) {
+    for (const property of THEME_STYLE_PROPERTIES) element.style.removeProperty(property);
+    delete element.dataset.classicProperties;
+    delete element.dataset.hoverIntensity;
+    delete element.dataset.noHoverBorder;
+    delete element.dataset.globalOutline;
+    element.style.removeProperty('--ctm-fixed-background');
     for (const property of ['background','border-radius','border-width','border-style','border-color','box-shadow']) element.style.removeProperty(property);
     const scope = kind === 'group' ? 'groups' : 'tabs';
-    const base = effectiveThemes()[scope];
+    const scopedTheme = effectiveThemes()[scope];
+    const base = isClassicTheme(scopedTheme) ? null : scopedTheme;
+    element.dataset.globalOutline = String(hasThemeProperty(scopedTheme,'outline'));
     const previewOverwriting = themePreviewActive && themePreviewOverwrite && (themePreviewScope === 'both' || themePreviewScope === scope);
     const override = effectiveAppearance(kind, key);
     if (kind === 'group') applyGroupActivity(element,key);
-    if (kind === 'group' && previewOverwriting && themePreview) element.style.setProperty('--ctm-color', themePreview.accent);
-    else if (kind === 'group') element.style.setProperty('--ctm-color', state.groups.find(g => g.id === key)?.color || COLORS[0]);
-    for (const prop of ['--ctm-item-background', '--ctm-item-hover-background', '--ctm-item-text', '--ctm-text-shadow', '--ctm-text-shadow-color', '--ctm-text-shadow-css']) element.style.removeProperty(prop);
+    if (kind === 'group') {
+      const groupAccent = /^#[0-9a-f]{6}$/i.test(override.accent || '') ? override.accent :
+        /^#[0-9a-f]{6}$/i.test(scopedTheme?.groupAccent || '') && hasThemeProperty(scopedTheme,'groupAccent') ? scopedTheme.groupAccent :
+        state.groups.find(g => g.id === key)?.color || COLORS[0];
+      element.style.setProperty('--ctm-color', groupAccent);
+      const count = element.querySelector('.ctm-count');
+      const countColor = hasThemeProperty(scopedTheme,'groupCountColor') && scopedTheme.groupCountColor
+        ? scopedTheme.groupCountColor : groupAccent;
+      if (count) count.style.setProperty('color',countColor,'important');
+      const caret = element.querySelector('.ctm-caret');
+      if (caret) caret.style.setProperty('color',activeIndicators().groupChevronColor || groupAccent,'important');
+    }
+    for (const prop of ['--ctm-item-background', '--ctm-item-hover-background', '--ctm-item-text', '--ctm-group-text', '--ctm-text-shadow', '--ctm-text-shadow-color', '--ctm-text-shadow-css']) element.style.removeProperty(prop);
+    if (kind === 'group' && hasThemeProperty(scopedTheme,'text')) element.style.setProperty('--ctm-group-text',scopedTheme.text);
     const own = ownAppearance(scope,key);
-    const themed = !!base || (!previewOverwriting && Object.keys(own).length > 0 && !(kind === 'tab' && own.preserveClassicSurface));
+    // Classic is property-by-property: adding one individual override must not
+    // switch the whole item to the complete default-theme surface. Its explicit
+    // values are applied below while all unrelated native/global properties stay put.
+    const themed = !!base;
     element.classList.toggle('ctm-themed-item', themed);
     const textTarget = element.querySelector(kind === 'group' ? '.ctm-group-name' : '.ctm-tab-main');
     const typographyProperties = {text:'color',fontSize:'font-size',fontFamily:'font-family',fontWeight:'font-weight',italic:'font-style'};
     if (textTarget) {
       for (const property of [...Object.values(typographyProperties), 'text-shadow']) textTarget.style.removeProperty(property);
     }
+    // Some ComfyUI host themes color nested button spans independently of the
+    // button. Set the effective group text directly so the global preset wins;
+    // an explicit/inherited item text override still has the highest priority.
+    const groupText = kind === 'group'
+      ? (Object.hasOwn(override,'text') ? override.text
+        : hasThemeProperty(scopedTheme,'text') ? scopedTheme.text
+          : scopedTheme === null || isClassicTheme(scopedTheme) ? THEME_DEFAULTS.text : null)
+      : null;
+    if (groupText && textTarget) textTarget.style.setProperty('color',groupText,'important');
     if (!themed) {
       // Classic with inherited typography keeps its original surface and geometry.
       if (kind === 'tab') {
         const group = state.groups.find(g => g.id === state.assignments[key]);
-        const palette = themePreviewActive && themePreviewOverwrite && themePreviewScope === 'both'
-          ? themePreview?.accent || COLORS[0] : group?.color || '#a18eff';
+        const palette = themePreviewActive && themePreviewOverwrite && themePreviewScope === 'both' && hasThemeProperty(effectiveThemes().groups,'accent')
+          ? effectiveThemes().groups.accent : group?.color || '#a18eff';
         element.style.setProperty('--ctm-accent', (!previewOverwriting && own.preserveClassicSurface) || palette);
       }
       if (textTarget) {
@@ -297,7 +435,9 @@ if (!document.querySelector('link[data-ctm-styles]')) {
           textTarget.style.setProperty(css, value, 'important');
         }
       }
-      applyElementDesign(element, override, base, (Object.hasOwn(inheritedAppearance(kind,key),'background') || !!own.preserveClassicSurface));
+      applyElementDesign(element, override, base, !!groupText || (kind === 'tab' && hasThemeProperty(scopedTheme,'text')));
+      applyClassicProperties(element,kind,scopedTheme,override);
+      applyHoverBehavior(element,scopedTheme,override);
       return;
     }
     const styles = themeStyles(base || THEME_DEFAULTS);
@@ -315,28 +455,62 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     if (Object.hasOwn(override, 'stroke')) element.style.setProperty('--ctm-stroke-width', `${override.stroke}px`);
     // Old text-outline values remain readable for imports, but are no longer drawn.
     // Legacy shadow overrides are intentionally ignored.
-    applyElementDesign(element, override, base, (Object.hasOwn(inheritedAppearance(kind,key),'background') || !!own.preserveClassicSurface));
+    applyElementDesign(element, override, base, !!groupText || (kind === 'tab' && hasThemeProperty(scopedTheme,'text')));
+    applyClassicProperties(element,kind,scopedTheme,override);
+    applyHoverBehavior(element,scopedTheme,override);
   }
   function applyTheme() {
     const scopes = effectiveThemes();
+    if (popover) {
+      const accent = themeControlPreview || state.ui?.controlAccent || DEFAULT_CONTROL_ACCENT;
+      const isDefault = accent.toLowerCase() === DEFAULT_CONTROL_ACCENT;
+      const rgb = [1,3,5].map(i => parseInt(accent.slice(i,i+2),16)/255);
+      const linear = rgb.map(c => c <= .04045 ? c / 12.92 : ((c+.055)/1.055)**2.4);
+      const luminance = linear[0]*.2126+linear[1]*.7152+linear[2]*.0722;
+      popover.style.setProperty('--ctm-control-accent', accent);
+      popover.style.setProperty('--ctm-control-primary', isDefault ? '#6455ac' : accent);
+      popover.style.setProperty('--ctm-control-primary-border', isDefault ? '#9a84ea' : accent);
+      popover.style.setProperty('--ctm-control-primary-text', isDefault || luminance < .179 ? '#fff' : '#17191f');
+    }
     if (!bar) return;
+    const indicators = activeIndicators();
+    bar.dataset.unsavedMode = indicators.mode;
+    bar.style.setProperty('--ctm-unsaved-color', indicators.color);
+    if (indicators.groupChevronColor) bar.style.setProperty('--ctm-group-chevron-color', indicators.groupChevronColor);
+    else bar.style.removeProperty('--ctm-group-chevron-color');
     const fallback = scopes.tabs || scopes.groups;
-    bar.classList.toggle('ctm-themed', !!fallback);
-    bar.classList.toggle('ctm-theme-tabs', !!scopes.tabs);
-    bar.classList.toggle('ctm-theme-groups', !!scopes.groups);
-    const alignment = scopes.tabs?.tabAlignment || scopes.groups?.tabAlignment || 'left';
+    bar.classList.toggle('ctm-themed', !!fallback && !isClassicTheme(fallback));
+    bar.classList.toggle('ctm-theme-tabs', !!scopes.tabs && !isClassicTheme(scopes.tabs));
+    bar.classList.toggle('ctm-theme-groups', !!scopes.groups && !isClassicTheme(scopes.groups));
+    bar.dataset.classicTabs = isClassicTheme(scopes.tabs) ? scopes.tabs.classicOverrides.join(' ') : '';
+    bar.dataset.classicGroups = isClassicTheme(scopes.groups) ? scopes.groups.classicOverrides.join(' ') : '';
+    const alignment = themeAlignment(scopes);
     bar.dataset.tabAlignment = alignment;
     for (const property of THEME_STYLE_PROPERTIES) bar.style.removeProperty(property);
     // Tab bar height is fixed; older saved theme values never resize it.
     root?.style.setProperty('--ctm-bar-height', '34px');
     root?.classList.add('ctm-custom-bar-height');
-    if (fallback) for (const [name, value] of Object.entries(themeStyles(fallback))) bar.style.setProperty(name, value);
+    // Paint variables belong to individual scopes, never the shared bar: otherwise a
+    // groups-only background edit also paints unthemed tabs through CSS inheritance.
+    if (fallback) for (const [name, value] of Object.entries(themeStyles(fallback))) {
+      if (['--ctm-gap','--ctm-content-gap','--ctm-radius'].includes(name)) bar.style.setProperty(name, value);
+    }
+    for (const scope of ['tabs','groups']) bar.style.setProperty(`--ctm-${scope}-gap`, `${hasThemeProperty(scopes[scope],'gap') ? scopes[scope].gap : 4}px`);
+    if (hasThemeProperty(scopes.groups,'groupContentGap')) bar.style.setProperty('--ctm-content-gap',`${scopes.groups.groupContentGap}px`);
+    else bar.style.removeProperty('--ctm-content-gap');
     // Theme affects actual tabs/groups only, never the settings gear, popup or helper controls.
     for (const element of bar.querySelectorAll('.ctm-tab[data-path]')) styleItem(element, 'tab', element.dataset.path);
-    for (const element of bar.querySelectorAll('.ctm-group-label[data-group-id]')) styleItem(element, 'group', element.dataset.groupId);
+    for (const element of bar.querySelectorAll('.ctm-group-label[data-group-id]')) {
+      styleItem(element, 'group', element.dataset.groupId);
+      const group=state.groups.find(g=>g.id===element.dataset.groupId),path=element.querySelector('.ctm-caret path');
+      if(path)path.setAttribute('d',groupChevronPath(!!group?.collapsed,alignment));
+      const caret=element.querySelector('.ctm-caret');
+      if(caret) caret.style.setProperty('color',indicators.groupChevronColor || element.style.getPropertyValue('--ctm-color'),'important');
+    }
+    syncUnsavedIndicators(bar, indicators);
     if (popover) {
-      const panelTheme = themePreviewActive ? themePreview : (scopes.groups || scopes.tabs);
-      const bg = panelTheme?.panelBg || null;
+      const panelTheme = scopes.groups || scopes.tabs;
+      const bg = hasThemeProperty(panelTheme,'panelBg') ? panelTheme.panelBg : null;
       if (bg) {
         popover.style.setProperty('--ctm-popover-bg', bg);
         const rgb = [1,3,5].map(i => parseInt(bg.slice(i,i+2),16)/255);
@@ -350,20 +524,47 @@ if (!document.querySelector('link[data-ctm-styles]')) {
       }
     }
   }
+  function syncUnsavedIndicators(container, indicators = activeIndicators()) {
+    if (!container?.querySelectorAll) return;
+    container.dataset.unsavedMode = indicators.mode;
+    container.style.setProperty('--ctm-unsaved-color', indicators.color);
+    for (const tab of container.querySelectorAll('.ctm-tab')) {
+      const glowing = tab.dataset.unsaved === 'true' && indicators.mode === 'border-glow';
+      const appearance = glowing ? effectiveAppearance('tab',tab.dataset.path) : {};
+      tab.classList.toggle('ctm-unsaved-glow', glowing);
+      tab.classList.toggle('ctm-unsaved-hide-global-border', glowing && !Object.hasOwn(appearance,'borderColor') && !Object.hasOwn(appearance,'borderWidth'));
+    }
+    for (const group of container.querySelectorAll('.ctm-group-label')) {
+      const dirty = group.dataset.hasUnsaved === 'true';
+      const collapsed = group.dataset.collapsed === 'true';
+      const glowing = dirty && collapsed && indicators.mode !== 'dirty-point';
+      const appearance = glowing ? effectiveAppearance('group',group.dataset.groupId) : {};
+      group.classList.toggle('ctm-unsaved-glow', glowing);
+      group.classList.toggle('ctm-unsaved-hide-global-border', glowing && !Object.hasOwn(appearance,'borderColor') && !Object.hasOwn(appearance,'borderWidth'));
+      const point = group.querySelector('.ctm-group-dirty');
+      if (point) {
+        // Keep the slot while a dirty descendant's group is expanded so toggling
+        // never changes the header width or shifts the right-aligned lane.
+        point.hidden = !(dirty && indicators.mode === 'dirty-point');
+        point.style.visibility = collapsed ? 'visible' : 'hidden';
+      }
+    }
+  }
   // Changes only the selected target scope; unselected elements keep their previous theme.
-  function commitTheme(theme, scope, overwrite) {
+  function commitTheme(theme, scope, overwrite, preserveTabs = true) {
     // Preserve unselected tabs before removing their explicitly enabled group sources.
-    if (scope === 'groups' && overwrite) {
+    if (scope === 'groups' && preserveTabs) {
       for (const path of Object.keys(state.assignments)) {
         const inherited = inheritedAppearance('tab', path, false);
+        const nextInherited = overwrite ? {} : inheritedAppearance('tab', path, false, theme);
         const own = state.ui.appearances.tabs[path] || {};
         const retained = {};
         for (const [property, value] of Object.entries(inherited)) {
-          if (!Object.hasOwn(own, property)) retained[property] = value;
+          if (!Object.hasOwn(own, property) && (overwrite || nextInherited[property] !== value)) retained[property] = value;
         }
         if (Object.hasOwn(retained,'background') && !Object.hasOwn(own,'backgroundOpacity') && !Object.hasOwn(retained,'backgroundOpacity')) retained.backgroundOpacity = themeScopes().tabs?.tabBgOpacity ?? 100;
         const oldAccent = own.preserveClassicSurface || state.groups.find(g => g.id === state.assignments[path])?.color || '#a18eff';
-        if (!themeScopes().tabs && (!Object.keys(own).length || own.preserveClassicSurface) &&
+        if (overwrite && (!themeScopes().tabs || isClassicTheme(themeScopes().tabs)) && (!Object.keys(own).length || own.preserveClassicSurface) &&
             (Object.keys(retained).length || oldAccent !== (theme?.accent || COLORS[0]))) {
           retained.preserveClassicSurface = oldAccent;
         }
@@ -376,11 +577,8 @@ if (!document.querySelector('link[data-ctm-styles]')) {
       updated[key] = theme ? normalizeTheme(theme) : null;
       if (overwrite) {
         state.ui.appearances[key] = {};
-        // Native group palette colors are also explicit, per-group customizations.
-        // This is deliberately destructive ONLY after selecting Overwrite Groups.
-        if (key === 'groups') {
-          for (const group of state.groups) group.color = theme?.accent || COLORS[0];
-        }
+        // Themes never rewrite the group's palette metadata. Otherwise a later
+        // preset/Reset can inherit a stale global color as an individual color.
       }
     }
     state.ui.themeScopes = updated;
@@ -388,7 +586,7 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     state.ui.theme = JSON.stringify(updated.tabs) === JSON.stringify(updated.groups) ? updated.tabs : null;
   }
   const cssSafe = (v) => String(v ?? '');
-  let state = { groups: [], assignments: {}, ui: { createButtonColor: null, theme: null, themeScopes: { tabs: null, groups: null }, customPresets: {}, appearances: { tabs: {}, groups: {} } } };
+  let state = { groups: [], assignments: {}, ui: { createButtonColor: null, controlAccent: DEFAULT_CONTROL_ACCENT, theme: null, themeScopes: { tabs: null, groups: null }, customPresets: {}, customPresetControlAccents: {}, appearances: { tabs: {}, groups: {} }, workflowOrder: [] } };
   let serverRevision = null;
   let syncReady = false;
   let syncBusy = false;
@@ -403,6 +601,8 @@ if (!document.querySelector('link[data-ctm-styles]')) {
   let bar = null;
   let nativeStrip = null;
   let nativeHost = null;
+  let tabView = 'manager';
+  let nativeViewControl = null;
   let nativeObserver = null;
   let bodyObserver = null;
   let timer = null;
@@ -410,16 +610,22 @@ if (!document.querySelector('link[data-ctm-styles]')) {
   let lastSignature = '';
   let lastRenderedActivePath = null;
   let popover = null;
+  let storagePopoverCleanup = null;
+  let batchSavePanel = null;
+  let batchSaveCleanup = null;
+  let batchSaveNoticeTimer = null;
   let dragPath = null;
   let dragGroupId = null;
   let dragEndTime = 0;
+  let moveMode = null;
+  let moveHint = null;
+  let moveModeKeyListenerInstalled = false;
   let lastConnectProblem = '';
   let warnedMissingCss = false;
   let detectionMode = 'inactive';
   let nodeByPath = new Map();
   let pathByNode = new WeakMap();
   const oldPaths = new WeakMap();
-  let nativeTabSnapshot = [];
   let lastTabAlignment = null;
   let restorePromptHandled = false;
   let restorePromptTimer = null;
@@ -429,17 +635,18 @@ if (!document.querySelector('link[data-ctm-styles]')) {
   // *native* tab order, not the visual group order. Never expose those actions
   // through a forwarded contextmenu event.
   const BLOCKED_NATIVE_ACTIONS = new Set([
-    'close tab', 'close tabs to left', 'close tabs to right', 'close other tabs',
+    'close tabs to left', 'close tabs to right', 'close other tabs',
     'close tabs to the left', 'close tabs to the right'
   ]);
   // Fail closed for unrecognized actions inside the native workflow context menu.
   // This protects future ComfyUI releases from newly introduced bulk actions.
   const ALLOWED_NATIVE_ACTIONS = new Set([
     'rename', 'duplicate', 'add to bookmarks', 'remove from bookmarks',
-    'save', 'save as', 'export', 'export (api)', 'clear workflow'
+    'save', 'save as', 'export', 'export (api)', 'clear workflow', 'close tab'
   ]);
   let nativeMenuGuardActive = false;
   let nativeMenuGuardObserver = null;
+  const guardedNativeItems = new Map();
 
   function normalizedMenuText(value) {
     return String(value || '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -464,6 +671,8 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     if (!nativeMenuGuardActive) return;
     for (const item of nativeMenuItems()) {
       if (!isDangerousNativeItem(item)) continue;
+      if (!guardedNativeItems.has(item)) guardedNativeItems.set(item,
+        ['data-ctm-blocked-close','aria-disabled','tabindex'].map(name => [name,item.getAttribute(name)]));
       item.setAttribute('data-ctm-blocked-close', 'true');
       item.setAttribute('aria-disabled', 'true');
       item.setAttribute('tabindex', '-1');
@@ -487,6 +696,61 @@ if (!document.querySelector('link[data-ctm-styles]')) {
       nativeMenuGuardObserver.observe(document.body, { childList: true, subtree: true });
     }
     protectNativeMenu();
+  }
+  function disableNativeMenuGuard() {
+    nativeMenuGuardActive = false;
+    nativeMenuGuardObserver?.disconnect(); nativeMenuGuardObserver = null;
+    for (const type of ['pointerdown','pointerup','mousedown','mouseup','click','auxclick','touchstart','touchend','keydown','keyup']) {
+      document.removeEventListener(type,preventDangerousNativeAction,true);
+    }
+    for (const [item,attributes] of guardedNativeItems) for (const [name,value] of attributes) {
+      if (value === null) item.removeAttribute(name); else item.setAttribute(name,value);
+    }
+    guardedNativeItems.clear();
+  }
+
+  function readTabView() {
+    try { tabView = localStorage.getItem(VIEW_STORAGE) === 'native' ? 'native' : 'manager'; }
+    catch (_) { tabView = 'manager'; }
+  }
+  function setTabView(value) {
+    if (!['native','manager'].includes(value)) return;
+    if (value === 'native' && moveMode) { moveMode = null; moveHint?.remove(); moveHint = null; }
+    tabView = value;
+    try { localStorage.setItem(VIEW_STORAGE,value); } catch (_) { /* session-only if storage is blocked */ }
+    removePopover(); connect();
+  }
+  function tabViewField() {
+    const field = el('label','ctm-tab-view-field');
+    field.append(el('span','','Tab display'));
+    const select = document.createElement('select'); select.setAttribute('aria-label','Tab display');
+    for (const [value,text] of [['manager','Tab Manager'],['native','Original ComfyUI Tabs']]) {
+      const option = document.createElement('option'); option.value = value; option.textContent = text; select.append(option);
+    }
+    select.value = tabView;
+    select.addEventListener('change',()=>setTabView(select.value)); field.append(select);
+    return field;
+  }
+  function showNativeView(point, reason) {
+    // Repeated polling in native/fallback mode must not dismiss its open dialog.
+    if (root || bar || nativeHost || nativeMenuGuardActive) detach();
+    if (nativeViewControl?.parentElement === point.candidate) {
+      // Do not generate mutation/observer loops during the periodic reconnect check.
+      if (nativeViewControl.dataset.reason !== reason) nativeViewControl.dataset.reason = reason;
+      return;
+    }
+    nativeViewControl?.remove();
+    const control = button('⚙','ctm-native-view-control',()=>{
+      const panel = el('div','ctm-native-view-editor ctm-centered-editor');
+      addPopoverHeader(panel,'Tab display'); panel.append(tabViewField());
+      panel.append(el('p','ctm-hint',tabView === 'native'
+        ? 'Original ComfyUI Tabs are selected. Your groups and designs are preserved.'
+        : 'Original ComfyUI Tabs remain visible because open workflows could not be identified safely. You can keep the original view or retry Tab Manager.'));
+      if (tabView === 'manager') panel.append(button('Retry Tab Manager','ctm-action',()=>setTabView('manager')));
+      showPopover(control,panel);
+    },'Choose Original ComfyUI Tabs or Tab Manager');
+    control.setAttribute('aria-label','Tab display settings'); control.dataset.reason = reason;
+    point.host.before(control); nativeViewControl = control;
   }
 
   // Only workflow references, NEVER copies of workflow contents. Reject paths that
@@ -539,8 +803,17 @@ if (!document.querySelector('link[data-ctm-styles]')) {
         typeof key === 'string' && typeof val === 'string' && byId.has(val))),
       ui: {
         customPresets: normalizePresets(saved.ui?.customPresets),
+        customPresetControlAccents: normalizePresetControlAccents(saved.ui?.customPresetControlAccents, normalizePresets(saved.ui?.customPresets)),
+        customPresetIndicators: normalizePresetIndicators(saved.ui?.customPresetIndicators),
+        indicators: normalizeIndicators(saved.ui?.indicators),
         createButtonColor: /^#[0-9a-fA-F]{6}$/.test(saved.ui?.createButtonColor) ? saved.ui.createButtonColor : null,
+        controlAccent: /^#[0-9a-fA-F]{6}$/.test(saved.ui?.controlAccent) ? saved.ui.controlAccent.toLowerCase() : DEFAULT_CONTROL_ACCENT,
         restorePaths: normalizeRestorePaths(saved.ui?.restorePaths),
+        // Optional visual workflow ordering. Older layouts omit this and continue
+        // to use ComfyUI's native order until the user explicitly reorders tabs.
+        workflowOrder: Array.isArray(saved.ui?.workflowOrder)
+          ? [...new Set(saved.ui.workflowOrder.filter(path => typeof path === 'string' && path.length > 0 && path.length <= 2048 && !/[\x00-\x1f]/.test(path)))].slice(0,40000)
+          : [],
         theme: normalizeTheme(saved.ui?.theme),
         themeScopes: saved.ui?.themeScopes && typeof saved.ui.themeScopes === 'object' && !Array.isArray(saved.ui.themeScopes)
           ? { tabs: normalizeTheme(saved.ui.themeScopes.tabs), groups: normalizeTheme(saved.ui.themeScopes.groups) }
@@ -574,9 +847,32 @@ if (!document.querySelector('link[data-ctm-styles]')) {
       dirty = true;
       console.warn('[ComfyUI Tab Manager] Cannot read pending layout:', err);
     }
+    restoreSessionMetadata();
+  }
+  const SESSION_METADATA = 'ComfyUI.TabManager.SessionReferences.v1';
+  function rememberSessionMetadata() {
+    try {
+      sessionStorage.setItem(SESSION_METADATA,JSON.stringify({
+        assignments:Object.fromEntries(Object.entries(state.assignments).filter(([key])=>isSessionReference(key))),
+        appearances:Object.fromEntries(Object.entries(state.ui.appearances.tabs).filter(([key])=>isSessionReference(key))),
+        workflowOrder:(state.ui.workflowOrder||[]).filter(isSessionReference)}));
+    } catch (_) { /* blocked storage: current in-memory session remains usable */ }
+  }
+  function restoreSessionMetadata() {
+    try {
+      const cached=JSON.parse(sessionStorage.getItem(SESSION_METADATA)||'{}');
+      for(const [key,id] of Object.entries(cached.assignments||{})) if(isSessionReference(key)&&state.groups.some(g=>g.id===id)) state.assignments[key]=id;
+      for(const [key,value] of Object.entries(cached.appearances||{})) if(isSessionReference(key)) state.ui.appearances.tabs[key]=normalizeAppearance(value);
+      state.ui.workflowOrder=[...new Set([...(state.ui.workflowOrder||[]),...(cached.workflowOrder||[]).filter(isSessionReference)])].slice(0,40000);
+    } catch (_) { /* malformed/local session cache never replaces durable layout */ }
+  }
+  function persistableLayout(layout = state) {
+    return {...layout,assignments:Object.fromEntries(Object.entries(layout.assignments||{}).filter(([key])=>!isSessionReference(key))),
+      ui:{...layout.ui,workflowOrder:(layout.ui?.workflowOrder||[]).filter(path=>!isSessionReference(path)),appearances:{...layout.ui?.appearances,
+        tabs:Object.fromEntries(Object.entries(layout.ui?.appearances?.tabs||{}).filter(([key])=>!isSessionReference(key)))}}};
   }
   function rememberPending() {
-    try { localStorage.setItem(LOCAL_PENDING, JSON.stringify(state)); }
+    try { localStorage.setItem(LOCAL_PENDING, JSON.stringify(persistableLayout())); }
     catch (err) { console.warn('[ComfyUI Tab Manager] Cannot save pending layout:', err); }
   }
   function acknowledgePending(saved) {
@@ -589,24 +885,33 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     } catch (err) { console.warn('[ComfyUI Tab Manager] Cannot acknowledge pending layout:', err); }
   }
   function persist() {
+    rememberSessionMetadata();
     // Local storage is retained as an automatic offline backup, not the primary store.
     rememberPending();
-    try { localStorage.setItem(STORAGE, JSON.stringify(state)); }
+    try { localStorage.setItem(STORAGE, JSON.stringify(persistableLayout())); }
     catch (err) { console.warn('[ComfyUI Tab Manager] Cannot save local fallback:', err); }
     dirty = true;
     localMutationVersion += 1;
     if (syncReady && !conflict) scheduleServerSave();
   }
   function hasLayout(layout) {
-    return !!(layout.groups?.length || Object.keys(layout.assignments || {}).length || layout.ui?.createButtonColor || layout.ui?.theme || layout.ui?.themeScopes?.tabs || layout.ui?.themeScopes?.groups || layout.ui?.restorePaths?.length || Object.keys(layout.ui?.customPresets || {}).length || Object.keys(layout.ui?.appearances?.tabs || {}).length || Object.keys(layout.ui?.appearances?.groups || {}).length);
+    const indicators=normalizeIndicators(layout.ui?.indicators);
+    const hasIndicatorSettings=indicators.mode!==DEFAULT_INDICATORS.mode || indicators.color!==DEFAULT_INDICATORS.color || indicators.groupChevronColor!==null || Object.keys(layout.ui?.customPresetIndicators||{}).length>0;
+    return !!(layout.groups?.length || Object.keys(layout.assignments || {}).length || layout.ui?.workflowOrder?.length || layout.ui?.createButtonColor || (layout.ui?.controlAccent && layout.ui.controlAccent !== DEFAULT_CONTROL_ACCENT) || layout.ui?.theme || layout.ui?.themeScopes?.tabs || layout.ui?.themeScopes?.groups || layout.ui?.restorePaths?.length || Object.keys(layout.ui?.customPresets || {}).length || Object.keys(layout.ui?.customPresetControlAccents || {}).length || Object.keys(layout.ui?.appearances?.tabs || {}).length || Object.keys(layout.ui?.appearances?.groups || {}).length || hasIndicatorSettings);
   }
   function backupLocal(key) {
-    try { localStorage.setItem(key, JSON.stringify(state)); }
+    try { localStorage.setItem(key, JSON.stringify(persistableLayout())); }
     catch (err) { console.warn('[ComfyUI Tab Manager] Could not back up local state:', err); }
   }
   function applyState(incoming) {
+    const sessionAssignments=Object.entries(state.assignments||{}).filter(([key])=>isSessionReference(key));
+    const sessionAppearances=Object.entries(state.ui?.appearances?.tabs||{}).filter(([key])=>isSessionReference(key));
+    const sessionOrder=(state.ui?.workflowOrder||[]).filter(isSessionReference);
     state = normalizeState(incoming);
-    try { localStorage.setItem(STORAGE, JSON.stringify(state)); }
+    for(const [key,id] of sessionAssignments) if(state.groups.some(g=>g.id===id)) state.assignments[key]=id;
+    Object.assign(state.ui.appearances.tabs,Object.fromEntries(sessionAppearances));
+    state.ui.workflowOrder=[...new Set([...(state.ui.workflowOrder||[]),...sessionOrder])].slice(0,40000);
+    try { localStorage.setItem(STORAGE, JSON.stringify(persistableLayout())); }
     catch (err) { console.warn('[ComfyUI Tab Manager] Could not cache server layout:', err); }
     lastSignature = '';
     applyTheme();
@@ -667,7 +972,7 @@ if (!document.querySelector('link[data-ctm-styles]')) {
   async function flushServerSave() {
     if (!syncReady || syncBusy || conflict || !dirty) return;
     syncBusy = true;
-    const snapshot = JSON.parse(JSON.stringify(state));
+    const snapshot = JSON.parse(JSON.stringify(persistableLayout()));
     const sentMutationVersion = localMutationVersion;
     try {
       const saved = await postServerState(snapshot, serverRevision);
@@ -714,7 +1019,7 @@ if (!document.querySelector('link[data-ctm-styles]')) {
         const normalized = normalizeState(remote.state);
         // Local edits made while the server was offline MUST NOT be discarded on reconnect.
         // The user must explicitly choose whether to reload or upload in this case.
-        if (localHadChanges && JSON.stringify(state) !== JSON.stringify(normalized)) {
+        if (localHadChanges && JSON.stringify(persistableLayout()) !== JSON.stringify(normalized)) {
           backupLocal(LOCAL_CONFLICT_BACKUP);
           syncReady = true;
           conflict = true;
@@ -722,7 +1027,7 @@ if (!document.querySelector('link[data-ctm-styles]')) {
           syncStatus = 'Conflict: local edits made while offline';
           return;
         }
-        if (JSON.stringify(state) !== JSON.stringify(normalized)) {
+        if (JSON.stringify(persistableLayout()) !== JSON.stringify(normalized)) {
           if (hasLayout(state)) { backupLocal(LOCAL_BEFORE_SERVER); replacedOldBrowserLayout = true; }
           applyState(normalized);
         }
@@ -769,7 +1074,7 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     } finally { syncBusy = false; }
   }
   function exportLayout(layout = state, filename = 'comfyui-tab-manager-layout.json') {
-    const json = JSON.stringify({ format: 'ComfyUI-Tab-Manager-Layout', version: 1, state: layout }, null, 2);
+    const json = JSON.stringify({ format: 'ComfyUI-Tab-Manager-Layout', version: 1, state: persistableLayout(layout) }, null, 2);
     const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
     const anchor = document.createElement('a');
     anchor.href = url; anchor.download = filename;
@@ -800,7 +1105,7 @@ if (!document.querySelector('link[data-ctm-styles]')) {
         return;
       }
       if (!remote.state) { window.alert('No layout is saved on the server yet.'); return; }
-      const stateBeforeReload = JSON.parse(JSON.stringify(state));
+      const stateBeforeReload = JSON.parse(JSON.stringify(persistableLayout()));
       backupLocal(LOCAL_BEFORE_SERVER);
       serverRevision = remote.revision;
       applyState(remote.state);
@@ -819,7 +1124,7 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     if (syncBusy) return;
     syncBusy = true;
     const sentMutationVersion = localMutationVersion;
-    const snapshot = JSON.parse(JSON.stringify(state));
+    const snapshot = JSON.parse(JSON.stringify(persistableLayout()));
     try {
       const remote = await fetchServerState();
       const saved = await postServerState(snapshot, remote.revision);
@@ -850,28 +1155,30 @@ if (!document.querySelector('link[data-ctm-styles]')) {
   }
   function showLayoutSettings(anchor) {
     const panel = el('div', 'ctm-storage-editor ctm-centered-editor');
-    addPopoverHeader(panel, 'Layout Storage & Backup');
+    addPopoverHeader(panel, 'Tab Manager Settings');
+    const scrollBody = el('div', 'ctm-settings-scroll');
+    panel.append(scrollBody);
+    const summary = el('div','ctm-settings-summary');
     const statusLine = el('div', 'ctm-hint ctm-storage-status', `Status: ${syncStatus}`);
-    panel.append(statusLine);
     const diagnostic = el('div', 'ctm-hint ctm-storage-diagnostic', syncErrorDetail);
     diagnostic.hidden = !syncErrorDetail;
-    panel.append(diagnostic);
-    panel.append(el('div', 'ctm-hint', 'Layouts are saved in the ComfyUI user directory. Workflow files are never changed.'));
-    const actions = el('div', 'ctm-layout-actions');
-    actions.append(button('Export Layout (.json)', 'ctm-action', () => exportLayout(), 'Back up your groups, assignments and colors'));
-    actions.append(button('Import Layout (.json)', 'ctm-action', () => {
+    summary.append(tabViewField(),statusLine,diagnostic,
+      el('div','ctm-hint','Layouts are saved in the ComfyUI user directory. Workflow files are never changed.'));
+    scrollBody.append(summary);
+    const exportButton = button('Export Layout (.json)', 'ctm-action', () => exportLayout(), 'Back up your groups, assignments and colors');
+    const importButton = button('Import Layout (.json)', 'ctm-action', () => {
       const picker = document.createElement('input');
       picker.type = 'file'; picker.accept = '.json,application/json';
       picker.addEventListener('change', () => importLayoutFile(picker.files?.[0]), { once: true });
       picker.click();
-    }, 'Restore a previous layout from JSON'));
-    actions.append(button('Reload Server Layout', 'ctm-action', () => reloadServerLayout(), 'Load layout stored in ComfyUI'));
-    actions.append(button('Test Server Connection', 'ctm-action', retryServerConnection, 'Check whether the ComfyUI Python backend is responding'));
-    actions.append(button('Restore Saved Workflow Tabs', 'ctm-action', () => {
+    }, 'Restore a previous layout from JSON');
+    const reloadButton = button('Reload Server Layout', 'ctm-action', () => reloadServerLayout(), 'Load layout stored in ComfyUI');
+    const testButton = button('Test Server Connection', 'ctm-action', retryServerConnection, 'Check whether the ComfyUI Python backend is responding');
+    const restoreButton = button('Restore Saved Workflow Tabs', 'ctm-action', () => {
       removePopover();
       showWorkflowRestoreOffer(true);
-    }, 'Reopen missing saved workflows without closing current tabs'));
-    actions.append(button('Save Current Open Tabs for Restore', 'ctm-action', () => {
+    }, 'Reopen missing saved workflows without closing current tabs');
+    const saveRestoreButton = button('Save Current Open Tabs for Restore', 'ctm-action', () => {
       const service = app?.extensionManager?.workflow;
       if (!service || typeof service.getWorkflowByPath !== 'function') {
         window.alert('Cannot verify saved workflows with this ComfyUI frontend. No snapshot was changed.');
@@ -886,12 +1193,13 @@ if (!document.querySelector('link[data-ctm-styles]')) {
       state.ui.restorePaths = open;
       persist();
       removePopover();
-    }, 'Remember open tabs including ungrouped saved workflows; files are never copied'));
-    if (conflict || dirty) actions.append(button('Use This Layout on Server', 'ctm-action ctm-primary', uploadLayoutWithConfirmation,
+    }, 'Remember open tabs including ungrouped saved workflows; files are never copied');
+    const extraServerActions = [];
+    if (conflict || dirty) extraServerActions.push(button('Use This Layout on Server', 'ctm-action ctm-primary', uploadLayoutWithConfirmation,
       'Explicitly replace the saved shared layout'));
     let backup = null;
     try { backup = localStorage.getItem(LOCAL_BEFORE_SERVER); } catch (_) { /* storage disabled */ }
-    if (backup) actions.append(button('Restore Previous Browser Layout', 'ctm-action', () => {
+    if (backup) extraServerActions.push(button('Restore Previous Browser Layout', 'ctm-action', () => {
       try {
         const recovered = normalizeState(JSON.parse(backup));
         if (!window.confirm('Restore your saved pre-sync browser layout?')) return;
@@ -899,16 +1207,329 @@ if (!document.querySelector('link[data-ctm-styles]')) {
         applyState(recovered); persist(); removePopover();
       } catch (error) { window.alert(`Invalid browser backup: ${error.message}`); }
     }, 'Restore your browser groups from before server syncing'));
-    panel.append(actions);
-    panel.append(button('👾Customize Theme👾', 'ctm-action ctm-theme-launch', () => showThemeStudio(anchor), 'Customize Tab Manager colors, borders, spacing and appearance'));
+
+    const actions = el('div', 'ctm-settings-accordions');
+    let expandedSection = null;
+    const iconPaths = {
+      backup: '<path d="M4 4h12l4 4v12H4z"/><path d="M8 4v6h8V4M8 20v-6h8v6"/>',
+      recovery: '<path d="M4 7h6l2 2h8v10H4z"/><path d="M8 14h8m-3-3 3 3-3 3"/>',
+      server: '<path d="M4 5h16v5H4zM4 14h16v5H4z"/><path d="M7 7.5h.01M7 16.5h.01M11 7.5h6M11 16.5h6"/>'
+    };
+    const makeIcon = kind => {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('aria-hidden', 'true');
+      svg.innerHTML = iconPaths[kind];
+      return svg;
+    };
+    const addAccordion = (title, icon, items) => {
+      const section = el('section', 'ctm-settings-section');
+      const trigger = button('', 'ctm-settings-trigger', null);
+      trigger.setAttribute('aria-expanded', 'false');
+      const region = el('div', 'ctm-settings-region');
+      region.id = `ctm-settings-${makeId()}`;
+      region.setAttribute('role', 'region'); region.setAttribute('aria-label', title);
+      region.setAttribute('aria-hidden', 'true'); region.inert = true;
+      trigger.setAttribute('aria-controls', region.id);
+      const label = el('span', 'ctm-settings-trigger-label', title);
+      const chevron = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      chevron.setAttribute('viewBox', '0 0 24 24'); chevron.setAttribute('aria-hidden', 'true');
+      chevron.innerHTML = '<path d="m6 9 6 6 6-6"/>';
+      trigger.append(makeIcon(icon), label, chevron);
+      const content = el('div', 'ctm-settings-region-inner');
+      const group = el('div', 'ctm-layout-actions');
+      group.append(...items);
+      content.append(group); region.append(content);
+      trigger.addEventListener('click', () => {
+        const shouldOpen = trigger.getAttribute('aria-expanded') !== 'true';
+        if (expandedSection) {
+          expandedSection.trigger.setAttribute('aria-expanded', 'false');
+          expandedSection.region.setAttribute('aria-hidden', 'true');
+          expandedSection.region.inert = true;
+        }
+        expandedSection = shouldOpen ? { trigger, region } : null;
+        trigger.setAttribute('aria-expanded', String(shouldOpen));
+        region.setAttribute('aria-hidden', String(!shouldOpen));
+        region.inert = !shouldOpen;
+      });
+      section.append(trigger, region); actions.append(section);
+    };
+    addAccordion('Layout Backup', 'backup', [exportButton, importButton]);
+    const batchSaveButton = button('Save All Workflows', 'ctm-action ctm-batch-save-launch', () => showBatchSaveManager(batchSaveButton), 'Save currently open modified workflows');
+    addAccordion('Workflow Tab Recovery', 'recovery', [restoreButton, saveRestoreButton, batchSaveButton]);
+    addAccordion('Server Tools', 'server', [reloadButton, testButton, ...extraServerActions]);
+    scrollBody.append(actions);
+    panel.append(button('Customize Themes', 'ctm-action ctm-theme-launch ctm-settings-theme-action', () => showThemeStudio(anchor), 'Customize Tab Manager colors, borders, spacing and appearance'));
     showPopover(anchor, panel);
+    const reposition = () => {
+      if (!panel.isConnected) return;
+      const r = anchor.getBoundingClientRect();
+      const w = panel.offsetWidth || 280;
+      const h = panel.offsetHeight || 250;
+      const x = Math.max(8, Math.min(r.left, window.innerWidth - w - 8));
+      const below = r.bottom + 6;
+      const y = below + h <= window.innerHeight ? below : Math.max(8, Math.min(r.top - h - 6, window.innerHeight - h - 8));
+      panel.style.left = `${x}px`; panel.style.top = `${y}px`;
+    };
+    let frame = 0;
+    const schedulePosition = () => {
+      if (frame) cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => { frame = 0; reposition(); });
+    };
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(schedulePosition) : null;
+    observer?.observe(panel);
+    window.addEventListener('resize', schedulePosition);
+    storagePopoverCleanup = () => {
+      observer?.disconnect(); window.removeEventListener('resize', schedulePosition);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }
+  function showBatchSaveManager(anchor) {
+    const service = app?.extensionManager?.workflow;
+    if (!service || !Array.isArray(service.openWorkflows) ||
+        typeof service.saveWorkflow !== 'function' || typeof service.renameWorkflow !== 'function' ||
+        !Array.isArray(service.persistedWorkflows)) {
+      showBatchSaveNotice('Batch saving is unavailable in this ComfyUI version.');
+      return;
+    }
+    const pending = service.openWorkflows.filter(workflow => {
+      if (!workflow) return false;
+      const isNew = workflow.isTemporary === true || workflow.isPersisted === false;
+      if (isNew) return true;
+      return workflow.isModified === true && workflow.isPersisted === true &&
+        typeof workflow.path === 'string' && workflow.path.length > 0;
+    }).map(workflow => ({ workflow, isNew: workflow.isTemporary === true || workflow.isPersisted === false,
+      targetPath: null, error: '' }));
+    if (!pending.length) { showBatchSaveNotice('All workflows are already saved.'); return; }
+
+    closeBatchSaveManager(false);
+    const overlay = el('div', 'ctm-batch-save-overlay');
+    overlay.setAttribute('data-testid', 'batch-save-overlay');
+    const dialog = el('section', 'ctm-batch-save-dialog');
+    dialog.setAttribute('role', 'dialog'); dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('aria-labelledby', 'ctm-batch-save-title');
+    dialog.tabIndex = -1;
+    const header = el('header', 'ctm-batch-save-header');
+    const title = el('h2', 'ctm-batch-save-title', 'Save All Workflows'); title.id = 'ctm-batch-save-title';
+    const description = el('p', 'ctm-batch-save-description', 'New workflows, including empty ones, and changed saved workflows are listed. Existing workflows keep their current file path.');
+    header.append(title, description);
+    const summary = el('div', 'ctm-batch-save-summary', `${pending.length} workflow${pending.length === 1 ? '' : 's'} ready to save`);
+    summary.setAttribute('role', 'status');
+    const list = el('div', 'ctm-batch-save-list'); list.setAttribute('aria-label', 'Workflows to save');
+    const rows = [];
+    const nameFor = workflow => String(workflow.filename || workflow.path?.split(/[\\/]/).pop()?.replace(/\.json$/i, '') || 'Untitled workflow');
+    const validName = value => {
+      const name = String(value || '').trim().replace(/\.json$/i, '');
+      if (!name || name.length > 240 || /[<>:"/\\|?*\x00-\x1f]/.test(name) || /[. ]$/.test(name)) return null;
+      if (/^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\..*)?$/i.test(name)) return null;
+      return `${name}.json`;
+    };
+    const duplicateCounts = new Map();
+    for (const entry of pending) {
+      const key = nameFor(entry.workflow).trim().toLocaleLowerCase('en-US');
+      duplicateCounts.set(key, (duplicateCounts.get(key) || 0) + 1);
+    }
+    const duplicateIndexes = new Map();
+    const reservedPaths = new Set(service.persistedWorkflows.map(item => String(item?.path || '').replace(/\\/g, '/').toLocaleLowerCase('en-US')));
+    for (let index = 0; index < pending.length; index++) {
+      const entry = pending[index];
+      const sourceName = nameFor(entry.workflow).trim();
+      const normalizedName = sourceName.toLocaleLowerCase('en-US');
+      const occurrence = (duplicateIndexes.get(normalizedName) || 0) + 1;
+      duplicateIndexes.set(normalizedName, occurrence);
+      const total = duplicateCounts.get(normalizedName) || 1;
+      entry.displayName = total > 1 ? `${sourceName} · ${occurrence}` : sourceName;
+      if (!entry.isNew) continue;
+      const directory = String(entry.workflow.directory || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+      const base = sourceName.replace(/\.json$/i, '').replace(/[<>:"/\\|?*\x00-\x1f]/g, ' ').replace(/[. ]+$/g, '').trim().slice(0, 180) || `Unsaved Workflow ${index + 1}`;
+      let candidate = base;
+      for (let suffix = 2; suffix < 10000; suffix++) {
+        const filename = validName(candidate);
+        const target = filename ? (directory ? `${directory}/${filename}` : filename) : '';
+        const key = target.toLocaleLowerCase('en-US');
+        if (filename && target.length <= 240 && !reservedPaths.has(key)) {
+          entry.suggestedName = candidate;
+          reservedPaths.add(key);
+          break;
+        }
+        candidate = `${base} (${suffix})`;
+      }
+      if (!entry.suggestedName) entry.suggestedName = `Unsaved Workflow ${index + 1}`;
+    }
+    const rowName = entry => entry.isNew ? (entry.targetPath?.split('/').pop() || entry.input?.value || nameFor(entry.workflow)) : nameFor(entry.workflow);
+    const validate = () => {
+      let invalid = false;
+      const selectedPaths = new Set();
+      for (const entry of pending) {
+        if (!entry.isNew || !entry.checkbox?.checked) continue;
+        const filename = validName(entry.input.value);
+        entry.input.setAttribute('aria-invalid', String(!filename));
+        entry.errorNode.textContent = entry.error || (!filename ? 'Enter a valid file name.' : '');
+        if (!filename) { invalid = true; continue; }
+        const directory = String(entry.workflow.directory || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+        if (directory && directory.split('/').some(part => !part || part === '.' || part === '..' || /[:<>"|?*\x00-\x1f]/.test(part))) {
+          entry.errorNode.textContent = 'The workflow folder cannot be safely verified.'; invalid = true; continue;
+        }
+        const target = directory ? `${directory}/${filename}` : filename;
+        if (target.length > 240) { entry.errorNode.textContent = 'The full workflow path is too long.'; invalid = true; continue; }
+        const key = target.toLocaleLowerCase('en-US');
+        if (selectedPaths.has(key)) { entry.errorNode.textContent = 'Another selected workflow uses this file name.'; invalid = true; continue; }
+        selectedPaths.add(key);
+        const current = String(entry.workflow.path || '').replace(/\\/g, '/').toLocaleLowerCase('en-US');
+        const exists = service.persistedWorkflows.some(item => String(item?.path || '').replace(/\\/g, '/').toLocaleLowerCase('en-US') === key);
+        const finalizedTarget = Boolean(entry.targetPath) && key === String(entry.targetPath).replace(/\\/g, '/').toLocaleLowerCase('en-US') && current === key;
+        if (exists && !finalizedTarget) {
+          entry.errorNode.textContent = 'A workflow already exists at this path. Choose another name.'; invalid = true;
+        }
+      }
+      const selected = pending.some(entry => entry.checkbox?.checked);
+      save.disabled = invalid || !selected || saving;
+      return !invalid;
+    };
+    pending.forEach((entry, index) => {
+      const row = el('article', 'ctm-batch-save-row');
+      const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = true;
+      checkbox.className = 'ctm-batch-save-checkbox'; checkbox.setAttribute('aria-label', `Select ${entry.displayName}`);
+      const content = el('div', 'ctm-batch-save-content');
+      const heading = el('div', 'ctm-batch-save-heading');
+      const name = el('span', 'ctm-batch-save-name', entry.displayName); name.title = nameFor(entry.workflow);
+      const badge = el('span', `ctm-batch-save-status${entry.isNew ? ' ctm-batch-save-status-new' : ' ctm-batch-save-status-modified'}`, entry.isNew ? 'New' : 'Modified');
+      badge.dataset.kind = entry.isNew ? 'new' : 'modified';
+      heading.append(name, badge);
+      content.append(heading);
+      if (entry.isNew) {
+        const label = el('label', 'ctm-batch-save-label', 'File name');
+        const input = document.createElement('input'); input.type = 'text'; input.className = 'ctm-batch-save-filename';
+        input.value = entry.suggestedName || entry.workflow.filename || nameFor(entry.workflow); input.autocomplete = 'off'; input.maxLength = 240;
+        label.append(input); content.append(label); entry.input = input;
+      } else {
+        const location = el('div', 'ctm-batch-save-location', entry.workflow.path); location.title = entry.workflow.path;
+        content.append(location);
+      }
+      const error = el('div', 'ctm-batch-save-error'); error.setAttribute('role', 'alert'); content.append(error);
+      row.append(checkbox, content); list.append(row);
+      Object.assign(entry, { checkbox, errorNode: error, row, nameNode: name, badge, index });
+      checkbox.addEventListener('change', validate);
+      entry.input?.addEventListener('input', () => { entry.error = ''; validate(); });
+      rows.push(entry);
+    });
+    const footer = el('footer', 'ctm-batch-save-footer');
+    const cancel = button('Cancel', 'ctm-batch-save-cancel', () => closeBatchSaveManager(true));
+    const save = button('Save Selected', 'ctm-batch-save-submit', null); save.disabled = true;
+    footer.append(cancel, save);
+    dialog.append(header, summary, list, footer); overlay.append(dialog); document.body.append(overlay);
+    batchSavePanel = overlay;
+    let saving = false;
+    const closeOnEscape = event => { if (event.key === 'Escape') { event.preventDefault(); closeBatchSaveManager(true); } };
+    const onBackdrop = event => { if (event.target === overlay) closeBatchSaveManager(true); };
+    document.addEventListener('keydown', closeOnEscape, true); overlay.addEventListener('click', onBackdrop);
+    batchSaveCleanup = () => { document.removeEventListener('keydown', closeOnEscape, true); };
+    const styleSource = state.ui.themeScopes?.groups || state.ui.themeScopes?.tabs || themeScopes().groups || themeScopes().tabs || {};
+    const panelBg = styleSource.panelBg || styleSource.panelBackground || '#23232b';
+    const panelText = styleSource.text || styleSource.textColor || '#eeeef4';
+    const controlAccent = state.ui.controlAccent || DEFAULT_CONTROL_ACCENT;
+    dialog.style.setProperty('--ctm-batch-panel-bg', panelBg);
+    dialog.style.setProperty('--ctm-batch-panel-fg', panelText);
+    dialog.style.setProperty('--ctm-control-accent', controlAccent);
+    const luminance = colorLuminance(controlAccent);
+    dialog.style.setProperty('--ctm-batch-accent-text', luminance > .56 ? '#17131f' : '#fff');
+    function updateSavedEntry(entry) {
+      entry.row.remove();
+      const remaining = pending.filter(item => item.row.isConnected).length;
+      summary.textContent = remaining ? `${remaining} workflow${remaining === 1 ? '' : 's'} remaining` : 'All selected workflows saved.';
+      validate();
+    }
+    save.addEventListener('click', async () => {
+      if (saving || !validate()) return;
+      saving = true; save.disabled = true; cancel.disabled = true;
+      let completed = 0, failed = 0;
+      for (const entry of pending) {
+        if (!entry.row.isConnected || !entry.checkbox.checked) continue;
+        const workflow = entry.workflow;
+        entry.error = ''; entry.errorNode.textContent = ''; entry.row.dataset.saveError = 'false';
+        entry.row.setAttribute('aria-busy', 'true');
+        try {
+          if (!entry.isNew && workflow.isModified !== true) throw new Error('This workflow is no longer marked as changed.');
+          if (entry.isNew) {
+            const filename = validName(entry.input.value);
+            const directory = String(workflow.directory || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+            const targetPath = entry.targetPath || (directory ? `${directory}/${filename}` : filename);
+            const needsNativeRename = workflow.isTemporary === true || workflow.isPersisted === false || workflow.path !== targetPath;
+            if (needsNativeRename) {
+              const collision = service.persistedWorkflows.some(item => String(item?.path || '').replace(/\\/g, '/').toLocaleLowerCase('en-US') === targetPath.toLocaleLowerCase('en-US'));
+              const retryingAssignedTarget = Boolean(entry.targetPath) && workflow.path === entry.targetPath && entry.targetPath.toLocaleLowerCase('en-US') === targetPath.toLocaleLowerCase('en-US');
+              if (collision && !retryingAssignedTarget) throw new Error('A workflow already exists at this path. Choose another name.');
+              await service.renameWorkflow(workflow, targetPath);
+              entry.targetPath = targetPath;
+              entry.input.disabled = true;
+            }
+          }
+          await service.saveWorkflow(workflow);
+          if (workflow.isModified === true || workflow.isTemporary === true || workflow.isPersisted === false) {
+            throw new Error('ComfyUI did not confirm that this workflow was saved.');
+          }
+          completed++; updateSavedEntry(entry);
+        } catch (error) {
+          failed++; entry.error = error?.message || 'Save failed. Try again.';
+          entry.row.dataset.saveError = 'true'; entry.errorNode.textContent = entry.error;
+          entry.row.removeAttribute('aria-busy');
+        }
+      }
+      saving = false; cancel.disabled = false;
+      summary.textContent = failed ? `Saved ${completed}; ${failed} failed. Failed workflows remain selected for retry.` : `${completed} workflow${completed === 1 ? '' : 's'} saved.`;
+      validate();
+      if (!failed && !pending.some(entry => entry.row.isConnected)) {
+        const done = button('Done', 'ctm-batch-save-done', () => closeBatchSaveManager(true)); footer.replaceChildren(done); done.focus();
+      }
+    });
+    overlay.addEventListener('input', validate); overlay.addEventListener('change', validate);
+    validate();
+    requestAnimationFrame(() => dialog.focus());
+  }
+  function colorLuminance(value) {
+    const match = /^#([0-9a-f]{6})$/i.exec(String(value || ''));
+    if (!match) return .35;
+    const channels = [0,2,4].map(index => parseInt(match[1].slice(index,index+2),16)/255).map(channel => channel <= .03928 ? channel/12.92 : ((channel+.055)/1.055)**2.4);
+    return channels[0]*.2126+channels[1]*.7152+channels[2]*.0722;
+  }
+  function closeBatchSaveManager(restoreFocus = false) {
+    if (!batchSavePanel) return;
+    const focusTarget = document.querySelector('.ctm-batch-save-launch');
+    if (batchSaveCleanup) { batchSaveCleanup(); batchSaveCleanup = null; }
+    batchSavePanel.remove(); batchSavePanel = null;
+    if (restoreFocus) focusTarget?.focus();
+  }
+  function showBatchSaveNotice(message) {
+    document.querySelector('.ctm-batch-save-toast')?.remove();
+    const toast = el('div', 'ctm-batch-save-toast', message); toast.setAttribute('role', 'status');
+    const theme = state.ui.themeScopes?.groups || state.ui.themeScopes?.tabs || themeScopes().groups || themeScopes().tabs || {};
+    toast.style.setProperty('--ctm-toast-bg', theme.panelBg || '#23232b');
+    toast.style.setProperty('--ctm-toast-fg', theme.text || '#eeeef4');
+    toast.style.setProperty('--ctm-toast-border', theme.accent || state.ui.controlAccent || DEFAULT_CONTROL_ACCENT);
+    document.body.append(toast);
+    if (batchSaveNoticeTimer) clearTimeout(batchSaveNoticeTimer);
+    batchSaveNoticeTimer = setTimeout(() => { toast.remove(); batchSaveNoticeTimer = null; }, 2800);
   }
   function showThemeStudio(anchor) {
     let scope = 'both';
     let overwrite = false;
+    let controlAccentDraft = state.ui.controlAccent || DEFAULT_CONTROL_ACCENT;
+    let indicatorsDraft = normalizeIndicators(state.ui.indicators);
+    let indicatorsPresetValue = null;
     let draft = themeScopes().tabs ? { ...themeScopes().tabs } : null;
+    const drafts = {...themeScopes()};
+    const targets = () => scope==='both' ? ['tabs','groups'] : [scope];
+    const targetsFor = key => ['groupAccent','groupCountColor','groupBg','groupHoverBg'].includes(key) ? (scope==='tabs'?[]:['groups']) : targets();
+    function replaceDraft(theme, preserveAlignment = false) {
+      const visibleAlignment = themeAlignment(drafts);
+      for(const key of targets()) {
+        const alignment = hasThemeProperty(drafts[key],'tabAlignment') ? drafts[key].tabAlignment : visibleAlignment;
+        drafts[key]=theme ? normalizeTheme({...theme,...(preserveAlignment ? {tabAlignment:alignment,
+          ...(isClassicTheme(theme)?{classicOverrides:[...new Set([...theme.classicOverrides,'tabAlignment'])]}:{})} : {})}) : null;
+      }
+      draft=drafts[scope==='groups'?'groups':'tabs'];
+    }
     const panel = el('div', 'ctm-theme-studio');
-    addPopoverHeader(panel, 'Customize Theme');
+    addPopoverHeader(panel, 'Customize Themes');
     panel.append(el('p', 'ctm-theme-intro', 'Only the Tab Manager is customized. Workflow files are never changed.'));
     const body = el('div','ctm-theme-body');
     panel.append(body);
@@ -951,8 +1572,17 @@ if (!document.querySelector('link[data-ctm-styles]')) {
       const option=el('option','',text);option.value=value;modeSelect.append(option);
     }
     row(app,'Custom designs',modeSelect);
-    const protectionSummary=el('p','ctm-theme-note');app.append(protectionSummary);
-    const presets=section('Preset & Preview');
+    const indicatorMode=el('select','ctm-theme-select');
+    for(const [value,label] of [['dirty-point','Dirty Point'],['border-glow','Border Glow'],['mixed','Mixed']]) { const option=el('option','',label);option.value=value;indicatorMode.append(option); }
+    indicatorMode.value=indicatorsDraft.mode;
+    row(app,'Unsaved indicators',indicatorMode).classList.add('ctm-indicator-mode-row');
+    const buttonBorders=el('select','ctm-theme-select');
+    for(const [value,label] of [['none','None'],['subtle','Subtle'],['bold','Bold']]) { const option=el('option','',label);option.value=value;buttonBorders.append(option); }
+    buttonBorders.value=String((draft||THEME_DEFAULTS).outline);
+    row(app,'Button borders',buttonBorders).classList.add('ctm-button-borders-row');
+    buttonBorders.addEventListener('change',()=>updateDraft('outline',buttonBorders.value));
+    controls.push({key:'outline',input:buttonBorders,unit:'',value:null});
+    const presets=section('Preset');
     const presetSelect=el('select','ctm-theme-select');
     const availablePresets=()=>presetThemes();
     function refreshPresetOptions(value = 'Custom') {
@@ -977,11 +1607,14 @@ if (!document.querySelector('link[data-ctm-styles]')) {
       if(!Object.hasOwn(existing,name)&&Object.keys(existing).length>=30) {
         window.alert('Maximum 30 saved theme presets.');return;
       }
-      const preset=normalizeTheme({...THEME_DEFAULTS,...(draft||{})});
+      const groupColors={groupAccent:drafts.groups?.groupAccent??null,groupCountColor:drafts.groups?.groupCountColor??null,groupBg:drafts.groups?.groupBg??null,groupHoverBg:drafts.groups?.groupHoverBg??null};
+      const preset=normalizeTheme({...THEME_DEFAULTS,...(draft||{}),...groupColors,...(draft===null?{classicOverrides:[]}: {})});
       state.ui.customPresets={...existing,[name]:preset};
+      state.ui.customPresetIndicators={...(state.ui.customPresetIndicators||{}),[name]:{...indicatorsDraft}};
+      state.ui.customPresetControlAccents={...(state.ui.customPresetControlAccents||{}),[name]:controlAccentDraft};
       persist();
       refreshPresetOptions(name);
-      const blob=new Blob([JSON.stringify({name,theme:preset},null,2)],{type:'application/json'});
+      const blob=new Blob([JSON.stringify({name,theme:preset,controlAccent:controlAccentDraft,indicators:indicatorsDraft},null,2)],{type:'application/json'});
       const url=URL.createObjectURL(blob);
       const link=document.createElement('a');link.href=url;
       link.download=`ctm-theme-${name.replace(/[^a-z0-9_-]/gi,'_')}.json`;link.click();
@@ -1004,27 +1637,41 @@ if (!document.querySelector('link[data-ctm-styles]')) {
         if(Object.hasOwn(existing,name)&&!window.confirm(`Replace saved preset "${name}"?`))return;
         if(!Object.hasOwn(existing,name)&&Object.keys(existing).length>=30)throw new Error('Maximum 30 saved presets');
         const sanitized=normalizeTheme(raw);
-        state.ui.customPresets={...existing,[name]:sanitized};persist();
-        draft={...sanitized};refreshPresetOptions(name);updateFields();previewDraft();
+        controlAccentDraft=/^#[0-9a-fA-F]{6}$/.test(data.controlAccent||'')?data.controlAccent.toLowerCase():DEFAULT_CONTROL_ACCENT;
+        indicatorsDraft=normalizeIndicators(data.indicators);
+        indicatorMode.value=indicatorsDraft.mode;
+        state.ui.customPresets={...existing,[name]:sanitized};
+        state.ui.customPresetIndicators={...(state.ui.customPresetIndicators||{}),[name]:{...indicatorsDraft}};
+        state.ui.customPresetControlAccents={...(state.ui.customPresetControlAccents||{}),[name]:controlAccentDraft};
+        persist();
+        replaceDraft({...sanitized},true);refreshPresetOptions(name);updateFields();previewDraft();
       }catch(error){window.alert(`Cannot import theme: ${error.message}`);}
     });
     presetTools.append(savePresetBtn,button('Import JSON','ctm-action',()=>importPresetInput.click(),'Import previously saved theme JSON'),importPresetInput);
     presets.append(presetTools);
-    const preview=el('div','ctm-theme-live-preview');
-    const previewGroup=el('span','ctm-preview-group','Sample Group  ▸');
-    const previewTab=el('span','ctm-preview-tab','Sample Workflow');
-    preview.append(previewGroup,previewTab);presets.append(preview);
-
     function colorField(parent,label,key) {
       const holder=el('div','ctm-color-control');
       const input=el('input','ctm-theme-color');input.type='color';
-      input.value=(draft||THEME_DEFAULTS)[key]||'#000000';
-      const hex=el('span','ctm-hex',input.value.toUpperCase());
-      holder.append(input,hex);
-      input.addEventListener('input',()=>{hex.textContent=input.value.toUpperCase();updateDraft(key,input.value);});
+      const colorHelp={
+        accent:'Tab accent affects workflow tabs. Unsaved points and glow use Unsaved indicator color.',
+        groupAccent:'Group design accent. Individual group accents stay protected by Keep individual settings.',
+        groupCountColor:'Changes only the number of workflows and subgroups in group headers.',
+        indicatorColor:'This color is used by unsaved workflow points and Border Glow.',
+        groupChevronColor:'When unset, each group arrow follows its current group color.',
+      }[key];
+      if(colorHelp)input.title=colorHelp;
+      const currentTheme=draft||THEME_DEFAULTS;
+      const groupTheme=drafts.groups||currentTheme;
+      input.value=key==='controlAccent'?controlAccentDraft:key==='indicatorColor'?indicatorsDraft.color:key==='groupChevronColor'?(indicatorsDraft.groupChevronColor||groupTheme.groupAccent||groupTheme.accent||drafts.tabs?.accent||DEFAULT_INDICATORS.color):key==='groupCountColor'?(groupTheme.groupCountColor||groupTheme.groupAccent||state.groups[0]?.color||groupTheme.accent):key==='groupAccent'?(groupTheme.groupAccent||state.groups[0]?.color||groupTheme.accent):key==='groupBg'?(groupTheme.groupBg||groupTheme.panelBg):key==='groupHoverBg'?(groupTheme.groupHoverBg||groupTheme.hoverBg):currentTheme[key]||'#000000';
+      holder.append(input);
+      input.addEventListener('input',()=>{
+        if(key==='indicatorColor') indicatorsDraft.color=input.value.toLowerCase();
+        else if(key==='groupChevronColor') indicatorsDraft.groupChevronColor=input.value.toLowerCase();
+        else { updateDraft(key,input.value); return; }
+        indicatorsPresetValue=null;previewDraft();
+      });
       const field=makeField(parent,label,holder,key);
       controls[controls.length-1].input=input;
-      controls[controls.length-1].hex=hex;
       return field;
     }
     function selectField(parent,label,key,options) {
@@ -1045,13 +1692,19 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     const layout=addGrid(section('Tab Layout'));
     selectField(layout,'Tab layout','tabAlignment',[['left','Left aligned'],['center','Centered'],['right','Right aligned']]).classList.add('ctm-effect-card','ctm-layout-alignment','ctm-refined-wide-select');
     const colors=addGrid(section('Colors'));
-    colorField(colors,'Accent color','accent');
+    colorField(colors,'Tab accent color','accent');
+    colorField(colors,'Group accent color','groupAccent');
+    colorField(colors,'Control accent color','controlAccent');
+    colorField(colors,'Unsaved indicator color','indicatorColor');
+    colorField(colors,'Group chevron color','groupChevronColor');
+    colorField(colors,'Group count color','groupCountColor');
     colorField(colors,'Tab background','tabBg');
+    colorField(colors,'Group background','groupBg');
 
     colorField(colors,'Tab hover','hoverBg');
+    colorField(colors,'Group hover','groupHoverBg');
     colorField(colors,'Panel background','panelBg');
     colorField(colors,'Text color','text');
-    selectField(colors,'Button borders','outline',[['none','None'],['subtle','Subtle'],['bold','Bold']]).classList.add('ctm-refined-wide-select');
     const typography=addGrid(section('Typography'));
     selectField(typography,'Font family','fontFamily',FONT_FAMILIES.map(x=>[x,x]));
     selectField(typography,'Font weight','fontWeight',[[400,'Regular'],[500,'Medium'],[600,'Semibold'],[700,'Bold'],[800,'Extra Bold']]);
@@ -1072,79 +1725,85 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     rangeField(interaction,'Hover intensity','hoverTint','%').classList.add('ctm-refined-wide','ctm-effect-card');
 
     function matchesPreset(name) {
-      const preset=availablePresets()[name];
-      return draft && preset && Object.keys(THEME_DEFAULTS).every(key =>
-        (draft[key]??THEME_DEFAULTS[key]) === (preset[key]??THEME_DEFAULTS[key]));
-    }
-    function updateSummary() {
-      const targets=scope==='both'?['tabs','groups']:[scope];
-      const count=targets.reduce((n,key)=>n+Object.keys(state.ui.appearances[key]||{}).length+(key==='groups'?state.groups.length:0),0);
-      protectionSummary.textContent=overwrite
-        ? `Overwrite will clear ${count} customized item(s) in the selected scope. Other items remain unchanged.`
-        : `Keep protects custom properties on ${count} item(s). Unset properties follow the global theme.`;
-    }
-    function updatePreviewCard() {
-      const theme=draft||THEME_DEFAULTS;
-      preview.style.backgroundColor=theme.panelBg;
-      preview.style.borderColor=theme.outline==='none'?'#686b77':'#555b6b';
-      const groupBg=`color-mix(in srgb, ${theme.accent} ${theme.groupTint}%, ${theme.tabBg})`;
-      previewGroup.style.background=groupBg;
-      previewGroup.style.color=theme.accent;
-      previewTab.style.background=colorWithOpacity(theme.tabBg,theme.tabBgOpacity);
-      previewTab.style.color=theme.text;
-      preview.style.minHeight=`54px`;
-      previewTab.style.paddingInline=`${theme.widthPadding}px`;
-      previewGroup.style.paddingInline=`${theme.widthPadding}px`;
-      preview.style.columnGap=`${theme.gap}px`;
-      preview.style.justifyContent=theme.tabAlignment==='center'?'center':theme.tabAlignment==='right'?'flex-end':'flex-start';
-      for (const element of [previewGroup,previewTab]) {
-        element.style.border=theme.outline==='none'?'0':`${theme.outline==='bold'?2:1}px solid ${theme.accent}`;
-        element.style.borderRadius=`${theme.radius}px`;
-        element.style.fontFamily=theme.fontFamily;
-        element.style.fontSize=`${theme.fontSize}px`;
-        element.style.fontWeight=String(theme.fontWeight);
-        element.style.fontStyle=theme.italic?'italic':'normal';
-        element.style.textShadow='none';
-        element.style.boxShadow='none';
-        element.style.height='31px';
-      }
+      const preset=Object.hasOwn(THEME_PRESETS,name)?presetTheme(name):normalizeTheme(availablePresets()[name]);
+      return preset && targets().every(target=>{
+        const current=drafts[target];
+        return current && JSON.stringify(current.classicOverrides?.filter(key=>key!=='tabAlignment')||null)===JSON.stringify(preset.classicOverrides?.filter(key=>key!=='tabAlignment')||null) && Object.keys(THEME_DEFAULTS).filter(key=>key!=='tabAlignment').every(key =>
+          (current[key]??THEME_DEFAULTS[key]) === (preset[key]??THEME_DEFAULTS[key]));
+      });
     }
     function previewDraft() {
       themePreview=draft;
+      themePreviewScopes=drafts;
       themePreviewActive=true;
       themePreviewScope=scope;
       themePreviewOverwrite=overwrite;
-      updatePreviewCard();applyTheme();
+      themeControlPreview=controlAccentDraft;
+      indicatorPreview={...indicatorsDraft};
+      applyTheme();
     }
     function updateDraft(key,value) {
-      draft=normalizeTheme({...THEME_DEFAULTS,...(draft||{}),[key]:value});
+      if(key==='controlAccent') {
+        indicatorsPresetValue=null;
+        controlAccentDraft=value.toLowerCase();
+        presetSelect.value='Custom';
+        previewDraft();
+        return;
+      }
+      indicatorsPresetValue=null;
+      const affected=targetsFor(key);
+      if(!affected.length)return;
+      for(const target of affected) {
+        const prior=drafts[target];
+        const classic = prior===null || isClassicTheme(prior);
+        drafts[target]=normalizeTheme({...THEME_DEFAULTS,...(prior||{}),[key]:value,
+          ...(classic ? {classicOverrides:[...new Set([...(prior?.classicOverrides || []),key])]} : {})});
+      }
+      draft=drafts[scope==='groups'?'groups':'tabs'];
       presetSelect.value='Custom';previewDraft();
     }
     function updateFields() {
       const theme=draft||THEME_DEFAULTS;
+      const groupTheme=drafts.groups||theme;
       for(const c of controls) {
-        if(c.input.type==='checkbox') c.input.checked=!!theme[c.key];
-        else c.input.value=String(theme[c.key]);
-        if(c.hex)c.hex.textContent=String(theme[c.key]).toUpperCase();
+        if(c.key==='groupAccent'||c.key==='groupCountColor'||c.key==='groupBg'||c.key==='groupHoverBg') {
+          const value=groupTheme[c.key];
+          c.input.value=value||(c.key==='groupCountColor'?groupTheme.groupAccent||state.groups[0]?.color||groupTheme.accent:c.key==='groupAccent'?state.groups[0]?.color||groupTheme.accent:c.key==='groupBg'?groupTheme.panelBg:groupTheme.hoverBg);
+          c.input.disabled=scope==='tabs';
+          continue;
+        }
+        const value=c.key==='controlAccent'?controlAccentDraft:c.key==='indicatorColor'?indicatorsDraft.color:c.key==='groupChevronColor'?(indicatorsDraft.groupChevronColor||groupTheme.groupAccent||groupTheme.accent||theme.accent||DEFAULT_INDICATORS.color):theme[c.key];
+        if(c.input.type==='checkbox') c.input.checked=!!value;
+        else c.input.value=String(value);
         if(c.input.type==='range')c.value.textContent=`${c.input.value}${c.unit}`;
       }
-      updatePreviewCard();
     }
     scopeSelect.addEventListener('change',()=>{
       scope=scopeSelect.value;
-      const current=themeScopes()[scope==='groups'?'groups':'tabs'];
+      const current=drafts[scope==='groups'?'groups':'tabs'];
       draft=current?{...current}:null;
-      presetSelect.value=draft===null?'Classic':Object.keys(availablePresets()).find(matchesPreset)||'Custom';
-      updateFields();updateSummary();previewDraft();
+      presetSelect.value=Object.keys(availablePresets()).find(matchesPreset)||'Custom';
+      updateFields();previewDraft();
     });
-    modeSelect.addEventListener('change',()=>{overwrite=modeSelect.value==='overwrite';updateSummary();previewDraft();});
-    presetSelect.value=draft===null?'Classic':Object.keys(availablePresets()).find(matchesPreset)||'Custom';
+    modeSelect.addEventListener('change',()=>{overwrite=modeSelect.value==='overwrite';previewDraft();});
+    indicatorMode.addEventListener('change',()=>{indicatorsDraft.mode=indicatorMode.value;indicatorsPresetValue=null;previewDraft();});
+    presetSelect.value=Object.keys(availablePresets()).find(matchesPreset)||'Custom';
     presetSelect.addEventListener('change',()=>{
-      draft=presetSelect.value==='Custom'?normalizeTheme({...THEME_DEFAULTS,...(draft||{})}):availablePresets()[presetSelect.value]?normalizeTheme(availablePresets()[presetSelect.value]):null;
+      const selectedPreset=presetSelect.value;
+      indicatorsDraft=selectedPreset!=='Custom'
+        ? normalizeIndicators(state.ui.customPresetIndicators?.[selectedPreset])
+        : normalizeIndicators(indicatorsDraft);
+      if(selectedPreset!=='Custom') {
+        controlAccentDraft=state.ui.customPresetControlAccents?.[selectedPreset] || DEFAULT_CONTROL_ACCENT;
+        if(Object.hasOwn(THEME_PRESETS,selectedPreset)) indicatorsDraft.groupChevronColor=presetTheme(selectedPreset).groupAccent;
+        indicatorMode.value=indicatorsDraft.mode;
+      }
+      indicatorsPresetValue=presetSelect.value==='Custom'?null:presetSelect.value;
+      replaceDraft(presetSelect.value==='Custom'?(draft ? normalizeTheme(draft) : null):Object.hasOwn(THEME_PRESETS,selectedPreset)?presetTheme(selectedPreset):normalizeTheme(availablePresets()[selectedPreset]),true);
       updateFields();previewDraft();
     });
     const actions=el('div','ctm-popover-actions');
-    actions.append(button('Reset','ctm-action',()=>{draft=null;presetSelect.value='Classic';updateFields();previewDraft();}));
+    actions.append(button('Reset','ctm-action',()=>{replaceDraft(classicDefaultsTheme());controlAccentDraft=DEFAULT_CONTROL_ACCENT;indicatorsDraft={...DEFAULT_INDICATORS,groupChevronColor:THEME_DEFAULTS.accent};indicatorMode.value=indicatorsDraft.mode;indicatorsPresetValue=null;presetSelect.value='Classic';updateFields();previewDraft();}));
     actions.append(button('Cancel','ctm-action',removePopover));
     actions.append(button('Apply Theme','ctm-action ctm-primary',()=>{
       if(overwrite) {
@@ -1152,13 +1811,22 @@ if (!document.querySelector('link[data-ctm-styles]')) {
         const count=targets.reduce((n,key)=>n+Object.keys(state.ui.appearances[key]||{}).length+(key==='groups'?state.groups.length:0),0);
         if(count&&!window.confirm(`Overwrite ${count} custom item(s) in selected scope? Workflow files will not change.`))return;
       }
-      commitTheme(draft,scope,overwrite);
+      // Commit each selected scope from its own draft, never copy the tabs theme over groups.
+      if(scope==='both') {commitTheme(drafts.tabs,'tabs',overwrite);commitTheme(drafts.groups,'groups',overwrite,false);}
+      else commitTheme(drafts[scope],scope,overwrite);
+      state.ui.controlAccent=controlAccentDraft;
+      state.ui.indicators=normalizeIndicators(indicatorsDraft);
+      if(indicatorsPresetValue && state.ui.customPresets?.[indicatorsPresetValue]) {
+        state.ui.customPresetIndicators={...(state.ui.customPresetIndicators||{}),[indicatorsPresetValue]:{...indicatorsDraft}};
+        state.ui.customPresetControlAccents={...(state.ui.customPresetControlAccents||{}),[indicatorsPresetValue]:controlAccentDraft};
+      }
       themePreview=null;themePreviewActive=false;themePreviewOverwrite=false;
+      indicatorPreview=null;
       persist();removePopover();render(true);
     }));
     panel.append(actions);
     showPopover(anchor,panel);
-    updateSummary();updateFields();previewDraft();
+    updateFields();previewDraft();
   }
   function el(tag, cls, text) {
     const e = document.createElement(tag);
@@ -1268,19 +1936,27 @@ if (!document.querySelector('link[data-ctm-styles]')) {
 
   // v1.55.x exposes paths on the native DOM; Reka Tabs (v1.59.x) does not.
   // The workflow store is the authoritative source for paths in the new UI.
+  const SESSION_REFERENCE = '@ctm-session:';
+  const resourceIds = new WeakMap();
+  let identityPaths = new Map();
+  const isSessionReference = key => typeof key === 'string' && key.startsWith(SESSION_REFERENCE);
+  function resourceIdentity(resource) {
+    if (typeof resource?.instanceId === 'string' && resource.instanceId) return `instance:${resource.instanceId}`;
+    if (!resourceIds.has(resource)) resourceIds.set(resource,makeId());
+    return resourceIds.get(resource);
+  }
   function storeWorkflows() {
     try {
       const list = app.extensionManager?.workflow?.openWorkflows;
       if (!Array.isArray(list)) return [];
-      return list.flatMap(w => {
-        const path = typeof w?.path === 'string' ? w.path : '';
-        if (!path) return [];
-        return [{
-          path,
-          filename: typeof w.filename === 'string' && w.filename ? w.filename : path.split('/').pop(),
-          isModified: !!w.isModified,
-          isPersisted: w.isPersisted !== false
-        }];
+      return list.filter(w=>w && typeof w==='object').map(resource => {
+        const nativePath = typeof resource.path === 'string' ? resource.path : '';
+        const identity = resourceIdentity(resource);
+        const isPersisted = !!nativePath && resource.isTemporary !== true && resource.isPersisted !== false;
+        return {resource,identity,nativePath,
+          path:isPersisted ? nativePath : SESSION_REFERENCE+identity,
+          filename:typeof resource.filename==='string' && resource.filename ? resource.filename : nativePath.split('/').pop() || 'Unsaved Workflow',
+          isModified:!!resource.isModified,isPersisted};
       });
     } catch (error) {
       console.warn('[ComfyUI Tab Manager] Cannot read the workflow store:', error);
@@ -1296,53 +1972,48 @@ if (!document.querySelector('link[data-ctm-styles]')) {
   function tabDirty(node) {
     return !!node.querySelector('[data-testid="workflow-dirty-indicator"]');
   }
-  // Mapping never invents workflow paths from filenames. Ambiguous or incomplete
-  // mappings fail open to native ComfyUI tabs rather than risk wrong assignments.
+  function nativeResource(node) {
+    // Optional Vue bridge: read the actual workflow prop, never names or array positions.
+    // Absence on a production build is expected; native attributes/store matching remain available.
+    for (let el=node,depth=0;el && depth<3;el=el.parentElement,depth++) {
+      let component=el.__vueParentComponent;
+      for (let n=0;component && n<16;component=component.parent,n++) {
+        const props=component.props;
+        const resource=props?.workflowOption?.workflow || props?.workflow;
+        if (resource && typeof resource==='object') return resource;
+      }
+    }
+    return null;
+  }
   function mapTabs(nodes) {
-    nodeByPath = new Map();
-    pathByNode = new WeakMap();
-    if (!nodes.length) { detectionMode = 'empty'; return []; }
-    const register = (node, wf) => {
-      nodeByPath.set(wf.path, node);
-      pathByNode.set(node, wf);
-      return wf;
-    };
-    if (nodes.every(node => !!node.getAttribute(LEGACY_PATH_ATTR))) {
-      detectionMode = 'legacy';
-      return nodes.map(node => {
-        const path = node.getAttribute(LEGACY_PATH_ATTR);
-        return register(node, {
-          path, filename: tabFilename(node) || path.split('/').pop() || path,
-          isModified: tabDirty(node), isPersisted: true
-        });
-      });
-    }
-    const store = storeWorkflows();
-    const labels = nodes.map(tabFilename);
-    // The tab bar renders openWorkflows in order. Accept positional matching
-    // only when all available labels agree; one coincidental match is unsafe.
-    if (store.length === nodes.length &&
-        labels.every((label, i) => label && label === store[i].filename)) {
-      detectionMode = 'store';
-      return nodes.map((node, i) => register(node, {
-        ...store[i], isModified: store[i].isModified || tabDirty(node)
-      }));
-    }
-    // During reordered DOM updates, match by unique filename only. Never pair
-    // duplicate names arbitrarily (different paths can share a filename).
-    const counts = new Map();
-    for (const w of store) counts.set(w.filename, (counts.get(w.filename) || 0) + 1);
-    const unique = new Map(store.filter(w => counts.get(w.filename) === 1).map(w => [w.filename, w]));
-    const matched = labels.map(label => label && unique.get(label));
-    if (store.length === nodes.length && matched.every(Boolean) &&
-        new Set(matched.map(w => w.path)).size === nodes.length) {
-      detectionMode = 'filename';
-      return nodes.map((node, i) => register(node, {
-        ...matched[i], isModified: matched[i].isModified || tabDirty(node)
-      }));
-    }
-    detectionMode = 'unresolved';
-    return nodes.map(() => null);
+    nodeByPath = new Map();pathByNode = new WeakMap();
+    if (!nodes.length) { detectionMode='empty';return []; }
+    const store=storeWorkflows(),used=new Set();
+    const unique=items=>items.length===1 ? items[0] : null;
+    if(store.length && store.length!==nodes.length){detectionMode='unresolved';return nodes.map(()=>null);}
+    let unresolved=false;
+    const result=nodes.map(node=>{
+      const resource=nativeResource(node),legacy=node.getAttribute(LEGACY_PATH_ATTR);
+      let wf=resource ? unique(store.filter(w=>w.resource===resource || w.identity===resourceIdentity(resource))) : null;
+      if (!wf && legacy) wf=unique(store.filter(w=>w.nativePath===legacy));
+      if (!wf && !legacy) {
+        const trigger=nativeToggle(node),ids=[trigger?.id,trigger?.getAttribute('aria-controls')].filter(Boolean);
+        wf=unique(store.filter(w=>[w.nativePath,w.resource.key].filter(k=>typeof k==='string'&&k).some(key=>
+          ids.some(id=>id.endsWith('-trigger-'+key)||id.endsWith('-content-'+key)||id.endsWith('-trigger-'+encodeURIComponent(key))||id.endsWith('-content-'+encodeURIComponent(key))))));
+      }
+      if (!wf && !store.length && legacy) wf={path:legacy,nativePath:legacy,identity:null,filename:tabFilename(node)||legacy.split('/').pop(),isModified:tabDirty(node),isPersisted:true};
+      // Last compatibility fallback: an exact, globally unique title, never positional pairing.
+      if (!wf && !legacy && store.length===nodes.length) {
+        const label=tabFilename(node);
+        if (label && nodes.filter(n=>tabFilename(n)===label).length===1) wf=unique(store.filter(w=>w.filename===label));
+      }
+      if (!wf || used.has(wf.path) || (wf.identity && store.filter(w=>w.identity===wf.identity).length!==1)) {unresolved=true;return null;}
+      used.add(wf.path);wf={...wf,isModified:wf.isModified||tabDirty(node)};
+      nodeByPath.set(wf.path,node);pathByNode.set(node,wf);return wf;
+    });
+    detectionMode=unresolved?'unresolved':nodes.every(n=>n.hasAttribute(LEGACY_PATH_ATTR))?'legacy':'store';
+    if(unresolved){nodeByPath.clear();pathByNode=new WeakMap();return nodes.map(()=>null);}
+    return result;
   }
   function workflows() {
     return mapTabs(nativeTabs()).filter(Boolean);
@@ -1365,8 +2036,9 @@ if (!document.querySelector('link[data-ctm-styles]')) {
   }
   function activePath() {
     try {
-      const path = app.extensionManager?.workflow?.activeWorkflow?.path;
-      if (path && nodeByPath.has(path)) return path;
+      const active = app.extensionManager?.workflow?.activeWorkflow;
+      const workflow = active && storeWorkflows().find(w=>w.resource===active || w.identity===resourceIdentity(active));
+      if (workflow && nodeByPath.has(workflow.path)) return workflow.path;
     } catch (_error) { /* use native tab state */ }
     for (const node of nativeTabs()) {
       const toggle = nativeToggle(node);
@@ -1377,7 +2049,7 @@ if (!document.querySelector('link[data-ctm-styles]')) {
           toggle.getAttribute('aria-selected') === 'true' ||
           toggle.classList.contains('p-togglebutton-checked') ||
           toggle.classList.contains('p-highlight')) {
-        return node.getAttribute(LEGACY_PATH_ATTR) || pathByNode.get(node)?.path || null;
+        return pathByNode.get(node)?.path || node.getAttribute(LEGACY_PATH_ATTR) || null;
       }
     }
     return null;
@@ -1415,7 +2087,7 @@ if (!document.querySelector('link[data-ctm-styles]')) {
   function openWorkflowViaStore(path) {
     try {
       const store = app.extensionManager?.workflow;
-      const workflow = store?.openWorkflows?.find(w => w?.path === path);
+      const workflow = storeWorkflows().find(w=>w.path===path)?.resource;
       if (workflow && typeof store.openWorkflow === 'function') {
         store.openWorkflow(workflow);
         return true;
@@ -1442,7 +2114,7 @@ if (!document.querySelector('link[data-ctm-styles]')) {
   function nativeMappingIncomplete(strip = nativeStrip) {
     if (!strip) return false;
     const nodes = [...strip.querySelectorAll(TAB_SELECTOR)];
-    if (!nodes.length) return storeWorkflows().length > 0;
+    if (!nodes.length) { detectionMode = 'empty'; return true; }
     const mapped = mapTabs(nodes);
     return mapped.some(w => !w) || new Set(mapped.map(w => w?.path)).size !== mapped.length;
   }
@@ -1452,8 +2124,8 @@ if (!document.querySelector('link[data-ctm-styles]')) {
       console.warn('[ComfyUI Tab Manager] Cannot open original workflow menu: native tab is unavailable:', path);
       return false;
     }
-    // Preserve native single-workflow actions while disabling all native Close Tab /
-    // mass-close menu commands. These commands are unsafe from a grouped tab bar.
+    // Preserve native single-workflow actions including Close Tab/save warnings.
+    // Bulk close still refers to native order, so keep its existing safety guard.
     removePopover();
     enableNativeMenuGuard();
     const point = event || native.getBoundingClientRect();
@@ -1474,7 +2146,7 @@ if (!document.querySelector('link[data-ctm-styles]')) {
 
   function closeWorkflow(path) {
     const native = getNativeTab(path);
-    const close = native?.querySelector('[data-testid="close-workflow-button"]');
+    const close = native?.querySelector('[data-testid="close-workflow-button"], [data-testid="workflow-close-button"]');
     if (!close) { console.warn('[ComfyUI Tab Manager] Native close control unavailable:', path); return; }
     close.click(); // ComfyUI's own close flow, including save warnings.
     queueRender();
@@ -1482,7 +2154,9 @@ if (!document.querySelector('link[data-ctm-styles]')) {
   function assign(path, id) {
     if (id) state.assignments[path] = id;
     else delete state.assignments[path];
-    persist(); render(true);
+    if (!isSessionReference(path)) persist();
+    else rememberSessionMetadata();
+    render(true);
   }
   function groupFor(path) {
     const id = state.assignments[path];
@@ -1493,18 +2167,24 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     return `ctm_${Date.now()}_${Math.random().toString(36).slice(2)}`;
   }
   function removePopover() {
+    closeBatchSaveManager(false);
     if (previewDockCleanup) { previewDockCleanup(); previewDockCleanup = null; }
+    if (storagePopoverCleanup) { storagePopoverCleanup(); storagePopoverCleanup = null; }
     if (popover) { popover.remove(); popover = null; }
     individualPreview = null;
     themePreview = null;
+    themePreviewScopes = null;
     themePreviewActive = false;
     themePreviewOverwrite = false;
+    themeControlPreview = null;
+    indicatorPreview = null;
     applyTheme();
   }
   function addPopoverHeader(panel, heading) {
     const header = el('div', 'ctm-popover-header');
     const title = el('h3', 'ctm-popover-title', heading);
-    title.title = heading;
+    if (heading.length <= 80) title.title = heading;
+    else title.setAttribute('aria-label', heading);
     header.append(title);
     // This dismisses the popover only; it never closes a workflow tab.
     const dismiss = button('×', 'ctm-popover-dismiss', removePopover, 'Close this menu');
@@ -1528,6 +2208,7 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     applyTheme();
   }
   function outsideHandler(event) {
+    if (batchSavePanel?.contains(event.target)) return;
     if (popover && !popover.contains(event.target) && !event.target.closest('.ctm-bar')) removePopover();
   }
   function childrenOf(parentId) {
@@ -1571,11 +2252,193 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     const target = siblings[i + delta];
     if (target) moveGroup(group.id, target.id, delta < 0 ? 'before' : 'after');
   }
+  function logicalSiblingDelta(visualDelta) {
+    return (bar?.dataset.tabAlignment || themeAlignment()) === 'right' ? -visualDelta : visualDelta;
+  }
+  function sameLaneElements(element) {
+    if (element.classList.contains('ctm-group-label')) {
+      const lane = element.parentElement?.parentElement;
+      return [...(lane?.children || [])]
+        .filter(node => node.classList.contains('ctm-group'))
+        .map(node => node.querySelector(':scope > .ctm-group-label'))
+        .filter(Boolean);
+    }
+    if (element.classList.contains('ctm-tab')) {
+      return [...(element.parentElement?.children || [])]
+        .filter(node => node.classList.contains('ctm-tab'));
+    }
+    return [];
+  }
+  function insertionOffset(element, visualMode) {
+    const rect = element.getBoundingClientRect();
+    const siblings = sameLaneElements(element).filter(node => node !== element).map(node => ({
+      rect: node.getBoundingClientRect()
+    })).filter(item => item.rect.width > 0 && item.rect.height > 0);
+    const neighbor = visualMode === 'before'
+      ? siblings.filter(item => item.rect.right <= rect.left + 1).sort((a,b) => b.rect.right - a.rect.right)[0]
+      : siblings.filter(item => item.rect.left >= rect.right - 1).sort((a,b) => a.rect.left - b.rect.left)[0];
+    const center = neighbor
+      ? visualMode === 'before' ? (neighbor.rect.right + rect.left) / 2 : (rect.right + neighbor.rect.left) / 2
+      : visualMode === 'before' ? rect.left : rect.right;
+    return center - rect.left - 1;
+  }
+  function moveTargetElement(selection = moveMode) {
+    if (!selection || !bar) return null;
+    const selector = selection.type === 'group' ? '.ctm-group-label' : '.ctm-tab';
+    const datasetKey = selection.type === 'group' ? 'groupId' : 'path';
+    return [...bar.querySelectorAll(selector)].find(node => node.dataset[datasetKey] === selection.id) || null;
+  }
+  function updateMoveModeUI(restoreFocus = false) {
+    moveHint?.remove(); moveHint = null;
+    if (!moveMode) return;
+    const target = moveTargetElement();
+    if (!target) { moveMode = null; return; }
+    target.classList.add('ctm-move-selected');
+    const hint = el('div','ctm-move-hint','Move mode · ←/→ reorder · Esc to finish');
+    hint.setAttribute('role','status'); hint.setAttribute('aria-live','polite');
+    document.body.append(hint); moveHint = hint;
+    const rect = target.getBoundingClientRect(), hintRect = hint.getBoundingClientRect();
+    hint.style.left = `${Math.max(8,Math.min(innerWidth-hintRect.width-8,rect.left+(rect.width-hintRect.width)/2))}px`;
+    hint.style.top = `${Math.max(8,Math.min(innerHeight-hintRect.height-8,rect.bottom+5))}px`;
+    if (restoreFocus) {
+      const focusTarget = moveMode.type === 'workflow' ? target.querySelector('.ctm-tab-main') : target;
+      focusTarget?.focus({preventScroll:true});
+    }
+  }
+  function clearMoveMode() {
+    if (!moveMode && !moveHint) return;
+    moveMode = null; moveHint?.remove(); moveHint = null;
+    render(true);
+  }
+  function selectMoveTarget(type, id) {
+    if (moveMode?.type === type && moveMode.id === id) { clearMoveMode(); return; }
+    moveMode = {type,id};
+    if (!moveModeKeyListenerInstalled) {
+      document.addEventListener('keydown',handleMoveModeKeydown,true);
+      moveModeKeyListenerInstalled = true;
+    }
+    render(true);
+    const target = moveTargetElement();
+    const focusTarget = type === 'workflow' ? target?.querySelector('.ctm-tab-main') : target;
+    focusTarget?.focus({preventScroll:true});
+  }
+  function handleMoveModeKeydown(event) {
+    if (!moveMode || popover) return;
+    if (event.key === 'Escape') {
+      event.preventDefault(); event.stopImmediatePropagation(); clearMoveMode(); return;
+    }
+    if (!['ArrowLeft','ArrowRight'].includes(event.key) || !bar?.contains(event.target)) return;
+    if (event.target.closest('input,textarea,select,[contenteditable="true"]')) return;
+    event.preventDefault(); event.stopImmediatePropagation();
+    const visualDelta = event.key === 'ArrowLeft' ? -1 : 1;
+    if (moveMode.type === 'workflow') moveWorkflowSibling(moveMode.id,visualDelta);
+    else moveSibling(moveMode.id,logicalSiblingDelta(visualDelta));
+  }
+  function orderControls(previousLabel, nextLabel, onPrevious, onNext) {
+    const controls = el('div','ctm-sibling-order-tools');
+    const makeArrow = (direction,label,handler) => {
+      const control = button('',`ctm-sibling-order-arrow ctm-arrow-${direction}`,handler,label);
+      control.setAttribute('aria-label',label);
+      const icon = document.createElementNS('http://www.w3.org/2000/svg','svg');
+      icon.setAttribute('viewBox','0 0 16 16'); icon.setAttribute('aria-hidden','true'); icon.setAttribute('focusable','false');
+      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+      path.setAttribute('d',direction === 'left' ? 'M10.5 3.5 6 8l4.5 4.5M6 8h7' : 'M5.5 3.5 10 8l-4.5 4.5M10 8H3');
+      icon.append(path); control.append(icon); return control;
+    };
+    const previous = makeArrow('left',previousLabel,onPrevious);
+    const next = makeArrow('right',nextLabel,onNext);
+    controls.append(previous,next);
+    return {controls,previous,next};
+  }
+  function orderedOpenWorkflows(open = workflows()) {
+    const byPath = new Map(open.map(workflow => [workflow.path,workflow]));
+    const result = [];
+    const seen = new Set();
+    for (const path of state.ui.workflowOrder || []) {
+      const workflow = byPath.get(path);
+      if (workflow && !seen.has(path)) { result.push(workflow); seen.add(path); }
+    }
+    for (const workflow of open) if (!seen.has(workflow.path)) result.push(workflow);
+    return result;
+  }
+  function storeOpenWorkflowOrder(openOrder) {
+    const openPaths = new Set(workflows().map(workflow => workflow.path));
+    const closedOrder = (state.ui.workflowOrder || []).filter(path => !openPaths.has(path));
+    state.ui.workflowOrder = [...openOrder.map(workflow => workflow.path),...closedOrder].slice(0,40000);
+  }
+  function workflowSiblings(path) {
+    const owner = groupFor(path);
+    return orderedOpenWorkflows().filter(workflow => groupFor(workflow.path) === owner);
+  }
+  function moveWorkflowSibling(path, delta) {
+    const siblings = workflowSiblings(path);
+    delta = logicalSiblingDelta(delta);
+    const i = siblings.findIndex(workflow => workflow.path === path);
+    const target = siblings[i + delta];
+    if (!target) return false;
+    const ordered = orderedOpenWorkflows();
+    const a = ordered.findIndex(workflow => workflow.path === path);
+    const b = ordered.findIndex(workflow => workflow.path === target.path);
+    if (a < 0 || b < 0) return false;
+    [ordered[a],ordered[b]] = [ordered[b],ordered[a]];
+    storeOpenWorkflowOrder(ordered);
+    persist(); render(true);
+    return true;
+  }
+  function moveWorkflowAtDrop(path, targetPath, visualMode) {
+    if (!path || !targetPath || path === targetPath || !['before','after'].includes(visualMode)) return false;
+    const ordered = orderedOpenWorkflows();
+    const sourceIndex = ordered.findIndex(workflow => workflow.path === path);
+    if (sourceIndex < 0 || !ordered.some(workflow => workflow.path === targetPath)) return false;
+    const alignment = bar?.dataset.tabAlignment || themeAlignment();
+    // Right-aligned lanes reverse their DOM sequence: map the physical insertion
+    // edge back to the stored sibling sequence before calculating the index.
+    const logicalMode = alignment === 'right' ? (visualMode === 'before' ? 'after' : 'before') : visualMode;
+    ordered.splice(sourceIndex,1);
+    const targetIndex = ordered.findIndex(workflow => workflow.path === targetPath);
+    if (targetIndex < 0) return false;
+    ordered.splice(targetIndex + (logicalMode === 'after' ? 1 : 0),0,{path});
+    storeOpenWorkflowOrder(ordered);
+    const destination = groupFor(targetPath);
+    if (destination) state.assignments[path] = destination;
+    else delete state.assignments[path];
+    persist(); render(true);
+    return true;
+  }
+  function appendWorkflowToGroup(path, groupId) {
+    const siblings = orderedOpenWorkflows().filter(workflow => groupFor(workflow.path) === groupId && workflow.path !== path);
+    if (!siblings.length) { assign(path,groupId); return; }
+    const last = siblings[siblings.length-1];
+    const alignment = bar?.dataset.tabAlignment || themeAlignment();
+    moveWorkflowAtDrop(path,last.path,alignment === 'right' ? 'before' : 'after');
+  }
   function showGroupEditor(anchor, groupId, newParentId = null) {
     const existing = state.groups.find(g => g.id === groupId);
     const parent = state.groups.find(g => g.id === newParentId);
     const panel = el('div', 'ctm-group-editor ctm-centered-editor');
     addPopoverHeader(panel, existing ? 'Edit Group' : parent ? `New Subgroup in \"${parent.name}\"` : 'New Tab Group');
+    if (existing) {
+      const siblings = childrenOf(existing.parentId ?? null);
+      const position = siblings.findIndex(group => group.id === existing.id);
+      let arrows;
+      const syncGroupArrows = () => {
+        const current = state.groups.find(group => group.id === groupId);
+        const currentSiblings = current ? childrenOf(current.parentId ?? null) : [];
+        const logicalPosition = currentSiblings.findIndex(group => group.id === groupId);
+        const visualPosition = (bar?.dataset.tabAlignment || themeAlignment()) === 'right' ? currentSiblings.length - 1 - logicalPosition : logicalPosition;
+        arrows.previous.disabled = visualPosition <= 0;
+        arrows.next.disabled = visualPosition < 0 || visualPosition >= currentSiblings.length - 1;
+      };
+      arrows = orderControls('Move group left','Move group right',() => {
+        moveSibling(groupId,logicalSiblingDelta(-1)); syncGroupArrows();
+      },() => {
+        moveSibling(groupId,logicalSiblingDelta(1)); syncGroupArrows();
+      });
+      const visualPosition = (bar?.dataset.tabAlignment || themeAlignment()) === 'right' ? siblings.length - 1 - position : position;
+      arrows.previous.disabled = visualPosition <= 0;
+      arrows.next.disabled = visualPosition < 0 || visualPosition >= siblings.length - 1;
+      panel.append(arrows.controls);
+    }
     const lab = el('label', 'ctm-group-name-label', 'Name');
     const input = el('input'); input.type = 'text'; input.maxLength = 80;
     input.value = existing ? existing.name : '';
@@ -1583,30 +2446,25 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     panel.append(lab, input);
     panel.append(el('label', '', 'Color'));
     const palette = el('div', 'ctm-palette');
-    let selected = existing?.color || COLORS[0];
+    let selected = existing ? (anchor.style.getPropertyValue('--ctm-color') || existing.color) : COLORS[0];
+    let colorEdited = false;
     const updateColor = () => [...palette.children].forEach((c, i) => c.classList.toggle('ctm-picked', COLORS[i] === selected));
     for (const c of COLORS) {
-      const sw = button('', 'ctm-swatch', () => { selected = c; updateColor(); }, c);
+      const sw = button('', 'ctm-swatch', () => { selected = c; colorEdited = true; updateColor(); }, c);
       sw.style.background = c; palette.append(sw);
     }
     panel.append(palette); updateColor();
     const customColorLabel = el('label', 'ctm-custom-color-label', 'Custom Color');
     const colorPicker = el('input', 'ctm-color-picker');
     colorPicker.type = 'color'; colorPicker.value = selected;
-    colorPicker.addEventListener('input', () => { selected = colorPicker.value; updateColor(); });
+    colorPicker.addEventListener('input', () => { selected = colorPicker.value; colorEdited = true; updateColor(); });
     palette.addEventListener('click', () => { colorPicker.value = selected; });
     panel.append(customColorLabel, colorPicker);
     if (existing) {
       const tools = el('div', 'ctm-group-tools');
       tools.append(button('＋ Add Subgroup', 'ctm-action', () => showGroupEditor(anchor, null, groupId), 'Create a new group inside this group'));
-      tools.append(button('← Move Left', 'ctm-action', () => { moveSibling(groupId, -1); removePopover(); }, 'Move left within the same level'));
-      tools.append(button('Move Right →', 'ctm-action', () => { moveSibling(groupId, 1); removePopover(); }, 'Move right within the same level'));
-      if (existing.parentId) {
-        tools.append(button('↖ Top Level', 'ctm-action', () => { moveGroup(groupId, null, 'root'); removePopover(); }, 'Move subgroup back to the top level'));
-      }
       panel.append(tools);
-      panel.append(button('👽Customize Group👽', 'ctm-action ctm-customize-launch', () => showIndividualAppearanceEditor(anchor, 'group', groupId)));
-      panel.append(el('div', 'ctm-hint', 'Drag a group: left/right edge to reorder; center to nest it.'));
+      panel.append(button('Customize Group', 'ctm-action ctm-customize-launch', () => showIndividualAppearanceEditor(anchor, 'group', groupId)));
     }
     const actions = el('div', 'ctm-popover-actions');
     if (existing) {
@@ -1628,8 +2486,13 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     function submit() {
       const name = input.value.trim();
       if (!name) { input.focus(); return; }
-      if (existing) { existing.name = name; existing.color = selected; }
-      else state.groups.push({ id: makeId(), name, color: selected, collapsed: false, parentId: parent?.id ?? null });
+      const savedGroup = existing || { id: makeId(), name, color: selected, collapsed: false, parentId: parent?.id ?? null };
+      savedGroup.name = name;
+      if (colorEdited) {
+        savedGroup.color = selected;
+        state.ui.appearances.groups[savedGroup.id] = {...state.ui.appearances.groups[savedGroup.id],accent:selected};
+      }
+      if (!existing) state.groups.push(savedGroup);
       persist(); removePopover(); render(true);
     }
     actions.append(button(existing ? 'Save' : 'Create', 'ctm-action ctm-primary', submit));
@@ -1639,9 +2502,9 @@ if (!document.querySelector('link[data-ctm-styles]')) {
   }
 
   function showCreateButtonEditor(anchor) {
-    const panel = el('div');
-    addPopoverHeader(panel, 'Customize + Group Button');
-    panel.append(el('label', '', 'Button Color'));
+    const panel = el('div', 'ctm-create-button-editor ctm-centered-editor');
+    addPopoverHeader(panel, 'Customize Group Button');
+    panel.append(el('label', 'ctm-create-button-color-label', 'Button Color'));
     const palette = el('div', 'ctm-palette');
     let selected = state.ui.createButtonColor || COLORS[0];
     const updateColor = () => [...palette.children].forEach((node, index) =>
@@ -1724,11 +2587,9 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     previewSection.append(el('h4','ctm-section-title','Live Preview'));
     body.append(previewSection);
     const basic = el('section','ctm-individual-section');
+    basic.classList.add('ctm-appearance-section');
     basic.append(el('h4','ctm-section-title','Appearance'));
-    basic.append(el('div','ctm-hint','Check Override to set a property. Unchecked properties inherit.'));
-    const columns = el('div','ctm-individual-columns');
-    columns.append(el('span','','Property'),el('span','','Override'),el('span','','Value'));
-    basic.append(columns); body.append(basic);
+    body.append(basic);
     const inheritance = el('section','ctm-individual-section ctm-inheritance-section');
     inheritance.append(el('h4','ctm-section-title','Inheritance'));
     const advanced = el('details','ctm-individual-advanced');
@@ -1772,40 +2633,66 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     function addField(label, key, type) {
       const field = el('label','ctm-individual-field');
       field.append(el('span','',label));
+      const section = ['background','accent','text','fontSize'].includes(key) ? basic :
+        advancedSections[['borderColor','borderWidth','radius'].includes(key) ? 'Borders & Shape' :
+          ['backgroundOpacity'].includes(key) ? 'Background & Effects' : 'Typography'];
+      if (type === 'boolean') {
+        field.classList.add('ctm-italic-override');
+        const labelNode=field.firstElementChild;
+        const status=el('small','ctm-italic-inheritance-status',Object.hasOwn(current,key)?'Custom':'Inherited');
+        labelNode.append(status);
+        const toggle=el('input');toggle.type='checkbox';toggle.checked=Boolean(effective[key] ?? inheritedDefaults[key] ?? false);
+        toggle.setAttribute('aria-label',label);toggle.title='Italic inherits when it matches the parent or global value';
+        field.dataset.overridden=String(Object.hasOwn(current,key));
+        toggle.addEventListener('change',()=>{
+          const inheritedValue=Boolean(inheritedAppearance(kind,id,false).italic ?? inheritedDefaults[key] ?? false);
+          if(toggle.checked===inheritedValue) delete draft[key];
+          else draft[key]=toggle.checked;
+          const overridden=Object.hasOwn(draft,key);
+          field.dataset.overridden=String(overridden);
+          status.textContent=overridden?'Custom':'Inherited';
+          previewIndividual();
+        });
+        field.append(toggle);section.append(field);return;
+      }
       const enabled = el('input'); enabled.type = 'checkbox'; enabled.checked = Object.hasOwn(current,key);
       enabled.title = 'Use an individual value; uncheck to inherit this property';
       enabled.setAttribute('aria-label',`Override ${label}`);
-      const control = el('select','ctm-theme-select');
+      let widget,controlNode,rangeOutput=null;
+      const numericRange = key === 'fontSize' ? [10,22,1] : key === 'backgroundOpacity' ? [0,100,1] : DESIGN_NUMBERS[key];
       if (type === 'color') {
-        control.remove();
-      }
-      let widget;
-      if (type === 'color') { widget = el('input','ctm-theme-color'); widget.type='color'; widget.value = effective[key] || inheritedDefaults[key] || '#000000'; }
-      else {
-        widget = control;
-        const options = type === 'design' ? Array.from({length:DESIGN_NUMBERS[key][1]+1},(_,i)=>[i,String(i)]) : type === 'font' ? FONT_FAMILIES.map(v=>[v,v]) :
-          type === 'number' ? Array.from({length:13},(_,i)=>[i+10, `${i+10}px`]) :
+        widget = el('input','ctm-theme-color'); widget.type='color'; widget.value = effective[key] || inheritedDefaults[key] || '#000000';
+        controlNode = widget;
+      } else if (numericRange) {
+        const wrap=el('div','ctm-individual-range-value');
+        widget=el('input','ctm-individual-range');widget.type='range';
+        [widget.min,widget.max,widget.step]=numericRange.map(String);
+        const initialValue=Number(effective[key] ?? inheritedDefaults[key] ?? (key==='fontSize'?12:0));
+        widget.value=String(Math.max(numericRange[0],Math.min(numericRange[1],initialValue)));
+        rangeOutput=el('output','ctm-individual-range-output');
+        const updateOutput=()=>{const value=Number(widget.value);rangeOutput.textContent=key==='backgroundOpacity'?`${value}%`:`${value}px`;};
+        updateOutput();wrap.append(widget,rangeOutput);controlNode=wrap;
+        widget.addEventListener('input',updateOutput);
+      } else {
+        widget=el('select','ctm-theme-select');
+        const options = type === 'font' ? FONT_FAMILIES.map(v=>[v,v]) :
           type === 'weight' ? [[400,'Regular'],[500,'Medium'],[600,'Semibold'],[700,'Bold'],[800,'Extra Bold']] :
-          type === 'boolean' ? [['false','Normal'],['true','Italic']] :
           Array.from({length:13},(_,i)=>[i, i===0?'None':`${i}px`]);
         for (const [value,text] of options) { const opt=el('option','',text); opt.value=String(value); widget.append(opt); }
-        widget.value = String(effective[key] ?? inheritedDefaults[key] ?? (type === 'font' ? 'inherit' : type === 'number' ? 12 : type === 'weight' ? 600 : type === 'boolean' ? false : 0));
+        widget.value = String(effective[key] ?? inheritedDefaults[key] ?? (type === 'font' ? 'inherit' : 600));
+        controlNode = widget;
       }
       function update() {
         widget.disabled = !enabled.checked;
         field.dataset.overridden = String(enabled.checked);
         if (!enabled.checked) { delete draft[key]; return; }
         let value = widget.value;
-        if (type === 'number' || type === 'weight' || type === 'design') value = Number(value);
-        if (type === 'boolean') value = value === 'true';
+        if (type === 'weight' || numericRange) value = Number(value);
         draft[key] = value;
       }
       enabled.addEventListener('change', update); widget.addEventListener('input', update);
       enabled.addEventListener('change',previewIndividual); widget.addEventListener('input',previewIndividual);
-      field.append(enabled,widget);
-      const section = ['background','accent','text','fontSize'].includes(key) ? basic :
-        advancedSections[['borderColor','borderWidth','radius'].includes(key) ? 'Borders & Shape' :
-          ['backgroundOpacity'].includes(key) ? 'Background & Effects' : 'Typography'];
+      field.append(controlNode,enabled);
       section.append(field); update();
     }
     const previewSamples = el('div','ctm-individual-preview ctm-bar');
@@ -1820,12 +2707,14 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     tabSample.dataset.previewTabPath = isGroup ? (samplePath || '__preview__') : id;
     const sampleName = isGroup ? workflows().find(w=>w.path===samplePath)?.filename || samplePath?.split('/').pop() : name;
     const previewName = sampleName || 'Workflow preview';
-    tabSample.append(el('span','ctm-tab-main',previewName)); tabSample.title = previewName;
+    const sampleTabMain = el('span','ctm-tab-main');
+    sampleTabMain.append(el('span','ctm-tab-title',previewName));
+    tabSample.append(sampleTabMain); tabSample.title = previewName;
     previewSamples.append(groupSample,tabSample);
     function previewIndividual() {
       individualPreview = {scope:isGroup?'groups':'tabs',id,draft:normalizeAppearance(draft),typography:!!propagate?.checked,design:!!propagateDesign?.checked};
       applyTheme();
-      previewSamples.dataset.tabAlignment = effectiveThemes().tabs?.tabAlignment || effectiveThemes().groups?.tabAlignment || 'left';
+      previewSamples.dataset.tabAlignment = themeAlignment();
       styleItem(groupSample,'group',isGroup?id:state.assignments[id]);
       styleItem(tabSample,'tab',isGroup?(samplePath || '__preview__'):id);
     }
@@ -1861,19 +2750,37 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     const panel = el('div', 'ctm-tab-menu ctm-centered-editor');
     const item = workflows().find(w => w.path === path);
     addPopoverHeader(panel, item?.filename || path.split('/').pop());
+    const siblings = workflowSiblings(path);
+    const position = siblings.findIndex(workflow => workflow.path === path);
+    let arrows;
+    arrows = orderControls('Move workflow left within its current group','Move workflow right within its current group',() => {
+      if (moveWorkflowSibling(path,-1)) syncWorkflowArrowState();
+    },() => {
+      if (moveWorkflowSibling(path,1)) syncWorkflowArrowState();
+    });
+    function syncWorkflowArrowState() {
+      const current = workflowSiblings(path);
+      const logicalIndex = current.findIndex(workflow => workflow.path === path);
+      const index = (bar?.dataset.tabAlignment || themeAlignment()) === 'right' ? current.length - 1 - logicalIndex : logicalIndex;
+      arrows.previous.disabled = index <= 0;
+      arrows.next.disabled = index < 0 || index >= current.length - 1;
+    }
+    const visualPosition = (bar?.dataset.tabAlignment || themeAlignment()) === 'right' ? siblings.length - 1 - position : position;
+    arrows.previous.disabled = visualPosition <= 0;
+    arrows.next.disabled = visualPosition < 0 || visualPosition >= siblings.length - 1;
+    panel.append(arrows.controls);
     panel.append(el('div', 'ctm-hint', 'Move to Group'));
     const active = groupFor(path);
     const ungroup = button(`${active === null ? '✓ ' : ''}Ungrouped`, 'ctm-choice', () => { assign(path, null); removePopover(); });
     panel.append(ungroup);
     for (const g of state.groups) {
       const depth = (() => { let n = 0, cur = g, guard = 0; while (cur?.parentId && guard++ < 32) { n++; cur = state.groups.find(x => x.id === cur.parentId); } return n; })();
-      const choice = button(`${'↳ '.repeat(Math.min(depth, 4))}${active === g.id ? '✓ ' : ''}${g.name}`, 'ctm-choice', () => { assign(path, g.id); removePopover(); });
+      const choice = button('', 'ctm-choice', () => { assign(path, g.id); removePopover(); });
       const dot = el('span', 'ctm-mini-dot'); dot.style.background = g.color;
-      choice.prepend(dot); panel.append(choice);
+      const label = el('span', 'ctm-choice-label', `${'↳ '.repeat(Math.min(depth, 4))}${active === g.id ? '✓ ' : ''}${g.name}`);
+      choice.append(dot, label); panel.append(choice);
     }
-    panel.append(button('🌟Customize Tab🌟', 'ctm-action ctm-customize-launch', () => showIndividualAppearanceEditor(anchor, 'tab', path)));
-    panel.append(el('div', 'ctm-hint', 'Workflow files are never moved.'));
-    panel.append(el('div', 'ctm-hint', 'To close this menu, press × above. To close a workflow, use the × on its tab.'));
+    panel.append(button('Customize Tab', 'ctm-action ctm-customize-launch', () => showIndividualAppearanceEditor(anchor, 'tab', path)));
     showPopover(anchor, panel);
   }
   function toggleGroup(id) {
@@ -1884,14 +2791,28 @@ if (!document.querySelector('link[data-ctm-styles]')) {
   }
   function tabNode(w, accent) {
     const selected = activePath() === w.path;
-    const node = el('div', `ctm-tab${selected ? ' ctm-selected' : ''}`);
+    const selectedForMove = moveMode?.type === 'workflow' && moveMode.id === w.path;
+    const node = el('div', `ctm-tab${selected ? ' ctm-selected' : ''}${selectedForMove ? ' ctm-move-selected' : ''}`);
     node.style.setProperty('--ctm-accent', state.ui.appearances.tabs[w.path]?.preserveClassicSurface || accent || '#a18eff');
-    node.title = w.path;
+    const tooltip = isSessionReference(w.path) ? `${w.filename} (unsaved — this browser session only)` : w.path;
+    node.setAttribute('aria-label', tooltip);
+    if (tooltip.length <= 80) node.title = tooltip;
     node.draggable = true;
     node.dataset.path = w.path;
-    const main = button(w.filename || w.path.split('/').pop(), 'ctm-tab-main', () => openWorkflow(w.path));
+    node.dataset.unsaved = String(!!(w.isModified || w.isPersisted === false));
+    const main = button('', 'ctm-tab-main', event => {
+      if (event.ctrlKey || event.metaKey) {
+        event.preventDefault(); event.stopPropagation(); selectMoveTarget('workflow',w.path); return;
+      }
+      openWorkflow(w.path);
+    });
+    const title = el('span', 'ctm-tab-title', w.filename || w.path.split('/').pop());
+    main.append(title);
     if (w.isModified || w.isPersisted === false) {
-      const dot = el('span', 'ctm-dirty', '•'); main.append(dot);
+      const dot = el('span', 'ctm-dirty', '•');
+      dot.setAttribute('aria-label', 'Unsaved changes');
+      dot.style.color='var(--ctm-unsaved-color,#f5b963)';
+      main.append(dot);
     }
     const moveButton = button('⋯', 'ctm-tab-group-button', event => {
       event.preventDefault(); event.stopPropagation();
@@ -1920,6 +2841,7 @@ if (!document.querySelector('link[data-ctm-styles]')) {
       closeWorkflow(w.path);
     });
     node.addEventListener('dragstart', event => {
+      if (moveMode?.type === 'workflow' && moveMode.id === w.path) clearMoveMode();
       event.stopPropagation();
       dragGroupId = null;
       dragPath = w.path;
@@ -1927,6 +2849,7 @@ if (!document.querySelector('link[data-ctm-styles]')) {
       event.dataTransfer.setData('application/x-comfy-tab-manager-path', w.path);
       event.dataTransfer.setData('text/plain', w.path);
     });
+    attachWorkflowDrop(node,w.path);
     node.addEventListener('dragend', () => { dragPath = null; cleanupDrag(); });
     return node;
   }
@@ -1936,12 +2859,40 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     dragGroupId = null;
     if (bar) bar.classList.remove('ctm-group-dragging');
     for (const cls of dragClasses) document.querySelectorAll(`.${cls}`).forEach(node => node.classList.remove(cls));
+    document.querySelectorAll('.ctm-insert-indicator').forEach(node => node.remove());
   }
   function dropMode(element, ev) {
     const r = element.getBoundingClientRect();
     const x = r.width ? (ev.clientX - r.left) / r.width : 0.5;
-    // Center means "place IN this group", side edges mean "before/after".
-    return x < 0.28 ? 'before' : x > 0.72 ? 'after' : 'inside';
+    // Edges are physical screen positions. The reverse-flex lane converts them
+    // back to logical sequence order only when committing the operation.
+    return x < 0.35 ? 'before' : x > 0.65 ? 'after' : 'inside';
+  }
+  function workflowDropMode(element, event) {
+    const rect = element.getBoundingClientRect();
+    const x = rect.width ? (event.clientX - rect.left) / rect.width : 0.5;
+    return x < 0.5 ? 'before' : 'after';
+  }
+  function logicalGroupDropMode(visualMode) {
+    return (bar?.dataset.tabAlignment || themeAlignment()) === 'right'
+      ? (visualMode === 'before' ? 'after' : visualMode === 'after' ? 'before' : visualMode)
+      : visualMode;
+  }
+  function showInsertIndicator(element, visualMode) {
+    element.classList.remove(...dragClasses);
+    element.querySelector(':scope > .ctm-insert-indicator')?.remove();
+    if (visualMode === 'inside') { element.classList.add('ctm-drop-inside'); return; }
+    element.classList.add(`ctm-drop-${visualMode}`);
+    const indicator = el('span','ctm-insert-indicator');
+    indicator.setAttribute('aria-hidden','true');
+    indicator.style.left = `${insertionOffset(element,visualMode)}px`;
+    element.append(indicator);
+    indicator.dataset.edge = visualMode;
+  }
+  function showInsideDropTarget(element) {
+    element.classList.remove(...dragClasses);
+    element.querySelector(':scope > .ctm-insert-indicator')?.remove();
+    element.classList.add('ctm-drop-inside');
   }
   function allowedGroupDrop(sourceId, targetId) {
     return sourceId !== targetId && !isDescendantGroup(targetId, sourceId);
@@ -1952,21 +2903,44 @@ if (!document.querySelector('link[data-ctm-styles]')) {
       if (dragGroupId && !allowedGroupDrop(dragGroupId, groupId)) return;
       ev.preventDefault(); ev.stopPropagation();
       ev.dataTransfer.dropEffect = 'move';
-      for (const cls of dragClasses) element.classList.remove(cls);
-      element.classList.add(dragGroupId ? `ctm-drop-${dropMode(element, ev)}` : 'ctm-drag-over');
+      if (dragGroupId) showInsertIndicator(element,dropMode(element,ev));
+      else showInsideDropTarget(element);
     });
-    element.addEventListener('dragleave', () => {
+    element.addEventListener('dragleave', event => {
+      if (event.relatedTarget && element.contains(event.relatedTarget)) return;
       for (const cls of dragClasses) element.classList.remove(cls);
+      element.querySelector(':scope > .ctm-insert-indicator')?.remove();
     });
     element.addEventListener('drop', ev => {
       if (!dragPath && !dragGroupId) return;
       ev.preventDefault(); ev.stopPropagation();
       const path = dragPath;
       const dragged = dragGroupId;
-      const mode = dropMode(element, ev);
+      const visualMode = dropMode(element, ev);
       cleanupDrag();
-      if (path) assign(path, groupId);
-      else if (dragged) moveGroup(dragged, groupId, mode);
+      if (path) appendWorkflowToGroup(path,groupId);
+      else if (dragged) moveGroup(dragged, groupId, logicalGroupDropMode(visualMode));
+    });
+  }
+  function attachWorkflowDrop(element, targetPath) {
+    element.addEventListener('dragover', event => {
+      if (!dragPath || dragPath === targetPath || dragGroupId) return;
+      event.preventDefault(); event.stopPropagation();
+      event.dataTransfer.dropEffect = 'move';
+      showInsertIndicator(element,workflowDropMode(element,event));
+    });
+    element.addEventListener('dragleave', event => {
+      if (event.relatedTarget && element.contains(event.relatedTarget)) return;
+      for (const cls of dragClasses) element.classList.remove(cls);
+      element.querySelector(':scope > .ctm-insert-indicator')?.remove();
+    });
+    element.addEventListener('drop', event => {
+      if (!dragPath || dragPath === targetPath || dragGroupId) return;
+      event.preventDefault(); event.stopPropagation();
+      const sourcePath = dragPath;
+      const visualMode = workflowDropMode(element,event);
+      cleanupDrag();
+      moveWorkflowAtDrop(sourcePath,targetPath,visualMode);
     });
   }
   function attachRootDrop(element) {
@@ -2010,38 +2984,16 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     return changed;
   }
   function syncPaths() {
-    const current = nativeTabs().map(node => ({
-      node,
-      path: pathByNode.get(node)?.path || node.getAttribute(LEGACY_PATH_ATTR),
-      name: tabFilename(node)
-    })).filter(entry => !!entry.path);
-    let changed = false;
-    // Best signal: ComfyUI reuses the exact native tab element and changes its path.
-    for (const entry of current) {
-      const previous = oldPaths.get(entry.node);
-      if (previous && previous !== entry.path) {
-        changed = transferWorkflowMetadata(previous, entry.path) || changed;
-      }
+    let changed=false;
+    const current=nativeTabs().map(node=>({node,...pathByNode.get(node)})).filter(w=>w.path);
+    for(const entry of current) {
+      const previous=entry.identity ? identityPaths.get(entry.identity) : oldPaths.get(entry.node);
+      // A stable resource (or exact reused legacy node) proves rename/save. Position never does.
+      if(previous && previous!==entry.path) changed=transferWorkflowMetadata(previous,entry.path)||changed;
+      oldPaths.set(entry.node,entry.path);
     }
-    // Some ComfyUI builds REPLACE the DOM node on Rename/Save As. The old
-    // WeakMap loses its identity, so require the same number of tabs, precisely
-    // one old path gone, one new path added, and an unchanged tab position.
-    // This is deliberately conservative: never guess during a bulk tab change.
-    if (nativeTabSnapshot.length && current.length === nativeTabSnapshot.length) {
-      const priorPaths = new Set(nativeTabSnapshot.map(x => x.path));
-      const currentPaths = new Set(current.map(x => x.path));
-      const removed = nativeTabSnapshot.filter(x => !currentPaths.has(x.path));
-      const added = current.filter(x => !priorPaths.has(x.path));
-      if (removed.length === 1 && added.length === 1) {
-        const from = nativeTabSnapshot.findIndex(x => x.path === removed[0].path);
-        const to = current.findIndex(x => x.path === added[0].path);
-        const sameNeighbors = (from === to) && current.every((x, index) => index === to || x.path === nativeTabSnapshot[index].path);
-        if (sameNeighbors) changed = transferWorkflowMetadata(removed[0].path, added[0].path) || changed;
-      }
-    }
-    for (const entry of current) oldPaths.set(entry.node, entry.path);
-    nativeTabSnapshot = current.map(({path,name}) => ({path,name}));
-    if (changed) persist();
+    identityPaths=new Map(current.filter(w=>w.identity).map(w=>[w.identity,w.path]));
+    if(changed) persist();
   }
   function signature() {
     return JSON.stringify([
@@ -2049,7 +3001,8 @@ if (!document.querySelector('link[data-ctm-styles]')) {
       activePath() || '',
       state.groups.map(g => [g.id, g.name, g.color, g.collapsed, g.parentId]),
       state.assignments,
-      state.ui.createButtonColor, state.ui.themeScopes, state.ui.appearances, state.ui.customPresets, state.ui.inheritGroupAppearance, state.ui.inheritGroupDesign
+      state.ui.workflowOrder,
+      state.ui.createButtonColor, state.ui.themeScopes, state.ui.appearances, state.ui.customPresets, state.ui.customPresetIndicators, state.ui.customPresetControlAccents, state.ui.indicators, state.ui.inheritGroupAppearance, state.ui.inheritGroupDesign
     ]);
   }
   // Keep native canvas input behavior unchanged: only the custom tab lane
@@ -2094,21 +3047,24 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     // Restore the native bar immediately if the frontend becomes unresolvable.
     if (nativeMappingIncomplete()) {
       lastConnectProblem = 'unmapped-tabs';
-      detach();
+      connect();
       return;
     }
+    const previousMoveTarget = moveTargetElement();
+    const restoreMoveFocus = !!previousMoveTarget &&
+      (document.activeElement === previousMoveTarget || previousMoveTarget.contains(document.activeElement));
     syncPaths();
     const next = signature();
     if (!force && lastSignature === next) return;
     lastSignature = next;
     // Rebuild only the custom bar, never Vue's original controls or workflow objects.
     const fragment = document.createDocumentFragment();
-    const open = workflows();
+    const open = orderedOpenWorkflows();
     const currentActive = activePath();
     const activeOwner = currentActive ? groupFor(currentActive) : null;
     const activeChanged = currentActive !== lastRenderedActivePath;
     // Resolve alignment before creating group buttons so caret orientation is current.
-    const effectiveAlignment = effectiveThemes().tabs?.tabAlignment || effectiveThemes().groups?.tabAlignment || 'left';
+    const effectiveAlignment = themeAlignment();
     bar.dataset.tabAlignment = effectiveAlignment;
     function descendantCount(id) {
       return open.filter(w => {
@@ -2123,7 +3079,11 @@ if (!document.querySelector('link[data-ctm-styles]')) {
       // Activity is native workflow ownership; expansion only controls content visibility.
       const activity = groupActivity(group.id,activeOwner);
       const {isCollapsed,containsActiveWorkflow,containsActiveDescendant} = activity;
-      const title = button('', `ctm-group-label${containsActiveWorkflow ? ' ctm-active' : ''}`, () => {
+      const selectedForMove = moveMode?.type === 'group' && moveMode.id === group.id;
+      const title = button('', `ctm-group-label${containsActiveWorkflow ? ' ctm-active' : ''}${selectedForMove ? ' ctm-move-selected' : ''}`, event => {
+        if (event.ctrlKey || event.metaKey) {
+          event.preventDefault(); event.stopPropagation(); selectMoveTarget('group',group.id); return;
+        }
         // HTML drag sometimes produces a click afterwards; do not toggle in that case.
         if (Date.now() - dragEndTime > 250) toggleGroup(group.id);
       });
@@ -2134,22 +3094,31 @@ if (!document.querySelector('link[data-ctm-styles]')) {
       title.setAttribute('aria-label', `${group.name}, ${descendantCount(group.id)} Workflows, ${isCollapsed ? 'collapsed' : 'expanded'}${containsActiveWorkflow ? ', contains active workflow' : containsActiveDescendant ? ', contains active descendant workflow' : ''}`);
       title.draggable = true;
       title.dataset.groupId = group.id;
+      title.dataset.collapsed=String(isCollapsed);
+      const hasUnsaved=open.some(w=>{
+        if(!(w.isModified||w.isPersisted===false)) return false;
+        const owner=groupFor(w.path);return owner===group.id || !!(owner&&isDescendantGroup(owner,group.id));
+      });
+      title.dataset.hasUnsaved=String(hasUnsaved);
       title.append(el('span', 'ctm-group-name', group.name));
       title.append(el('span', 'ctm-count', descendantCount(group.id)));
-      const rightAligned = bar.dataset.tabAlignment === 'right';
+      const dirtyPoint=el('span','ctm-group-dirty','•');
+      dirtyPoint.setAttribute('aria-label','Contains unsaved workflow');
+      dirtyPoint.hidden=true;
+      title.append(dirtyPoint);
       const caret = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       caret.classList.add('ctm-caret');
       caret.setAttribute('viewBox', '0 0 16 16');
       caret.setAttribute('aria-hidden', 'true');
       caret.setAttribute('focusable', 'false');
       const chevron = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      chevron.setAttribute('d', isCollapsed
-        ? (rightAligned ? 'M10 4 L6 8 L10 12' : 'M6 4 L10 8 L6 12')
-        : 'M4 6 L8 10 L12 6');
+      if(activeIndicators().groupChevronColor) caret.style.color=activeIndicators().groupChevronColor;
+      chevron.setAttribute('d', groupChevronPath(isCollapsed,bar.dataset.tabAlignment));
       caret.append(chevron);
       title.append(caret);
       title.addEventListener('contextmenu', event => { event.preventDefault(); showGroupEditor(title, group.id); });
       title.addEventListener('dragstart', event => {
+        if (moveMode?.type === 'group' && moveMode.id === group.id) clearMoveMode();
         event.stopPropagation();
         dragPath = null;
         dragGroupId = group.id;
@@ -2216,7 +3185,7 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     const wasAtRightEdge = !!previousItems &&
       previousItems.scrollWidth - previousItems.clientWidth - previousScroll <= 1;
     const previousAlignment = lastTabAlignment;
-    const newAlignment = effectiveThemes().tabs?.tabAlignment || effectiveThemes().groups?.tabAlignment || 'left';
+    const newAlignment = themeAlignment();
     const scrollLeft = button('‹', 'ctm-scroll-arrow ctm-scroll-left', () =>
       scrollLaneBy(items, -Math.max(120, Math.round(items.clientWidth * 0.7))), 'Scroll workflow tabs left');
     const scrollRight = button('›', 'ctm-scroll-arrow ctm-scroll-right', () =>
@@ -2230,6 +3199,7 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     const track=el('div','ctm-scroll-track');
     const thumb=el('div','ctm-scroll-thumb');track.append(thumb);
     bar.replaceChildren(settings, create, rootDrop, scrollLeft, items, scrollRight, track);
+    updateMoveModeUI(restoreMoveFocus);
     items.scrollLeft=previousScroll;
     lastRenderedActivePath = currentActive;
     setupScrollTrack(items,track,thumb,scrollLeft,scrollRight);
@@ -2305,6 +3275,7 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     requestAnimationFrame(() => { renderQueued = false; render(); });
   }
   function detach() {
+    disableNativeMenuGuard();
     removePopover();
     cleanupDrag();
     if (nativeObserver) { nativeObserver.disconnect(); nativeObserver = null; }
@@ -2313,7 +3284,7 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     if (root) { root.classList.remove('ctm-ready','ctm-custom-bar-height'); root.style.removeProperty('--ctm-bar-height'); }
     if (nativeHost) nativeHost.classList.remove('ctm-native-host');
     root = null; bar = null; nativeStrip = null; nativeHost = null; lastSignature = ''; lastRenderedActivePath = null;
-    nativeTabSnapshot = []; lastTabAlignment = null;
+    lastTabAlignment = null;
   }
   function attachmentPoint() {
     // Do not assume a particular wrapper class or parent nesting; Vue and
@@ -2336,6 +3307,7 @@ if (!document.querySelector('link[data-ctm-styles]')) {
   function connect() {
     const point = attachmentPoint();
     if (!point) {
+      nativeViewControl?.remove(); nativeViewControl = null;
       if (root && (!root.isConnected || !nativeStrip?.isConnected)) detach();
       if (lastConnectProblem !== 'missing-root-or-strip') {
         lastConnectProblem = 'missing-root-or-strip';
@@ -2344,16 +3316,18 @@ if (!document.querySelector('link[data-ctm-styles]')) {
       return;
     }
     const { candidate, strip, host } = point;
+    if (tabView === 'native') { showNativeView(point,'selected-native'); return; }
     if (nativeMappingIncomplete(strip)) {
       if (lastConnectProblem !== 'unmapped-tabs') {
         lastConnectProblem = 'unmapped-tabs';
         console.warn('[ComfyUI Tab Manager] Native tabs are visible while workflow paths cannot be resolved.');
       }
-      if (root) detach();
+      showNativeView(point,'unmapped-tabs');
       return;
     }
     if (lastConnectProblem === 'unmapped-tabs') lastConnectProblem = '';
     if (root === candidate && nativeStrip === strip && nativeHost === host && bar?.isConnected) return;
+    nativeViewControl?.remove(); nativeViewControl = null;
     detach();
     root = candidate;
     nativeStrip = strip;
@@ -2366,6 +3340,7 @@ if (!document.querySelector('link[data-ctm-styles]')) {
       // CSS only hides native tabs after the replacement is mounted and rendered.
       host.before(bar);
       render(true);
+      if (!bar?.isConnected) { showNativeView(point,'unmapped-tabs'); return; }
       if (!bar.querySelector('.ctm-new-group')) throw new Error('Group creation button was not rendered');
       host.classList.add('ctm-native-host');
       root.classList.add('ctm-ready');
@@ -2379,6 +3354,7 @@ if (!document.querySelector('link[data-ctm-styles]')) {
     } catch (error) {
       console.error(`[ComfyUI Tab Manager v${VERSION}] Initialization failed:`, error);
       detach();
+      showNativeView(point,'initialization-failed');
     }
   }
   function setup() {
@@ -2396,6 +3372,7 @@ if (!document.querySelector('link[data-ctm-styles]')) {
       }
     } catch (err) { console.warn('[ComfyUI Tab Manager] Cannot migrate previous settings:', err); }
     readState();
+    readTabView();
     connect();
     void initServerSync();
     // Periodically refresh layouts changed in another browser.

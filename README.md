@@ -2,57 +2,60 @@
 
 <img width="1672" height="941" alt="ComfyUI Tab Manager showcase" src="https://github.com/user-attachments/assets/ed9b1f8e-fecc-4043-9fb4-0a860fff91ef" />
 
-**A Chrome-style workflow tab organizer for ComfyUI.** Create color-coded groups, organize workflows into nested subgroups, and customize the appearance of your tabs—all directly in ComfyUI's top workflow bar.
+**A Chrome-style workflow tab organizer for ComfyUI.** Organize open workflows in color-coded groups and nested subgroups, move tabs where you want them, and customize the tab bar without leaving ComfyUI.
 
 ### Showcase video
 
 https://github.com/user-attachments/assets/cbbdbf18-35fa-4bd3-9bd3-ff8c88685d30
 
-**Version:** 1.1.1  
+**Version:** 1.2.0  
 **Type:** ComfyUI frontend extension with local server-backed settings  
 **Dependencies:** ComfyUI; no additional Python packages required
 
 ## ❤️ Support the Project
 
-ComfyUI Tab Manager is completely free and open-source!
+ComfyUI Tab Manager is free and open-source. If you enjoy using it and would like to support future development, you can [buy me a coffee on Ko-fi](https://ko-fi.com/redysdump). Support is optional; the features remain free.
 
-If you enjoy using it and would like to support future development, you can [buy me a coffee on Ko-fi](https://ko-fi.com/redysdump). ☕
+## What's new in v1.2.0
 
-Support is entirely optional. Every feature will remain free. Thank you! ❤️
+- **Native tabs or Tab Manager:** Switch between the custom bar and original ComfyUI tabs, with a safety fallback if workflow identity cannot be resolved.
+- **Faster organization:** Reorder workflows directly within groups and move them across visible groups or nested subgroups; use single-item keyboard Move mode when preferred.
+- **Save All Workflows:** Select new or modified open workflows and save them through ComfyUI's native save flow, including empty new drafts.
+- **Unsaved indicators:** Choose **Dirty Point**, **Border Glow**, or **Mixed**, with configurable indicator color. A dirty glow visually replaces that item's global button border.
+- **Expanded customization:** Independent group and tab colors, button borders, appearance sliders, per-property overrides, and optional group typography/design sharing.
+- **Improved settings and storage:** Dedicated Layout Backup, Workflow Tab Recovery, and Server Tools sections; safer offline edits and revision-conflict handling.
 
-## What's new in v1.1.1
-
-- **Compatibility with newer ComfyUI frontends:** Workflow tabs now appear correctly with newer Reka UI tab components (including Frontend 1.59.0), alongside the legacy tab interface.
-- **Reliable workflow switching:** Fixed tab selection across both UI generations, including a regression that could unintentionally close workflow tabs in older frontends.
-- **Safer fallback:** If the extension cannot reliably identify the open workflows, ComfyUI's native tabs remain available instead of being hidden behind an empty bar.
-
-Thanks to [@hulkx07](https://github.com/hulkx07) for identifying the frontend compatibility issues and proposing a fix in [PR #3](https://github.com/RedysDump/ComfyUI-Tab-Manager/pull/3).
-
-## Highlights from v1.1.0
-
-- **Customize Themes:** Customize colors, typography, borders, spacing and more with a live preview and seven built-in themes: Classic, Minimal, Soft, Neon, Tropical, Ocean and Library.
-- **Personalize groups and tabs:** Apply individual styles to a group or workflow tab, with per-setting inheritance from your global theme.
-- **Flexible theme application:** Apply a theme to tabs, groups or both, while choosing whether to preserve or replace individual customizations.
-- **Theme presets:** Save your own themes as JSON presets and import them whenever you like.
-- **Layout import and export:** Save your entire tab organization as a JSON file and restore it later.
-- **Shared layout storage:** Save groups and appearance settings in your ComfyUI user directory. The same layout can be used across browsers connected to the same ComfyUI server and user profile.
-- **Restore saved tabs:** Optionally reopen previously saved workflow tabs when supported by your ComfyUI frontend.
-- **Improved navigation:** Left, center or right tab alignment, scrolling, overflow navigation and automatic reveal of the active workflow.
-- **Nested group highlighting:** The active workflow highlights its containing group and all parent groups, even across multiple nesting levels.
-- **Refined interface:** More compact menus, improved group controls and a cleaner, consistent tab bar.
-
-For a complete list of changes, see the [changelog](CHANGELOG.md).
+See the [full changelog](CHANGELOG.md) and [v1.2.0 release notes](RELEASE_NOTES_v1.2.0.md).
 
 ## Features
 
-- **Groups and subgroups:** Create, rename, recolor, reorder, nest, collapse and expand groups.
-- **Drag and drop:** Organize open workflow tabs and move groups into or out of nested hierarchies.
-- **Adaptive Ungrouped section:** Appears only when one or more open workflows aren't assigned to a group.
-- **Custom + Group button:** Right-click **+ Group** to change its color.
-- **Workflow controls:** Use the tab's **⋯** menu or **Shift + right-click** to move a workflow between groups. Standard ComfyUI workflow context-menu actions remain available.
-- **Native tab behavior:** Click to switch workflows and use **×** or middle-click to close an individual tab.
-- **Clear titles:** Long tab and group names are shortened visually, with full names available on hover.
-- **Persistent organization:** Keep your groups, layout and customizations after restarting ComfyUI.
+### Workflows, tabs and groups
+
+- Create, rename, recolor, reorder, collapse, and nest groups and subgroups.
+- Drag workflow tabs within a group or between groups and visible subgroups, with clear insertion feedback.
+- Toggle between **Tab Manager** and **Original ComfyUI Tabs**; ambiguous workflow mapping keeps the native view available.
+- Left, center, or right bar alignment, overflow navigation, and automatic reveal of the active workflow.
+- Adaptive **Ungrouped** section when workflows are not assigned to a group; active-workflow highlighting through nested parents.
+- Native tab activation and context-menu actions, individual **×** closing, and middle-click closing. ComfyUI remains responsible for save warnings.
+- Single-item keyboard Move mode: Ctrl-click a group or workflow tab, use Left/Right arrows, and Escape to leave.
+- Visually truncate long names without discarding the complete title.
+
+### Themes and appearance
+
+- Seven built-in themes: **Classic, Minimal, Soft, Neon, Tropical, Ocean, Library**.
+- **Customize Themes:** Colors, typography, surfaces, hover effects, button borders, corner radius, opacity, and other appearance controls. Changes preview **immediately on the real tab bar**, without first clicking Apply Theme.
+- Apply global themes to tabs, groups, or both, either keeping or overwriting individual overrides in the chosen scope.
+- **Customize Group** and **Customize Tab:** Individual appearance overrides, inheritance, and their own previews. Groups can independently opt to share typography and compatible design settings with descendants.
+- **Button borders:** None, Subtle, Bold. **Unsaved indicators:** Dirty Point, Border Glow, Mixed. A dirty glow replaces the generated button border only for the affected element.
+- Import and export JSON theme presets. The separate sample strip in Customize Themes was intentionally removed; its live bar feedback remains.
+
+### Storage and workflow recovery
+
+- Server-backed group and appearance layout saved under the selected ComfyUI user profile, with browser fallback and offline edit recovery.
+- Revision checking and explicit handling of conflicting changes from connected browsers; validated atomic server writes and backup of prior settings.
+- **Layout Backup:** Export/import organization and appearance as JSON, separate from the workflow file contents.
+- **Workflow Tab Recovery:** Save a list of currently open saved-workflow paths and restore available tabs later.
+- **Save All Workflows:** Choose which modified or new open workflows to save through the native ComfyUI workflow store. Unchanged saved workflows are omitted.
 
 ## Installation
 
@@ -60,20 +63,20 @@ For a complete list of changes, see the [changelog](CHANGELOG.md).
 
 1. Open **ComfyUI Manager** and search for **ComfyUI Tab Manager**.
 2. Install the extension.
-3. Restart ComfyUI and refresh your browser (`Ctrl + F5`).
+3. Restart ComfyUI and hard-refresh the browser (`Ctrl + F5`).
 
 ### Manual installation
 
-Clone the repository into your ComfyUI `custom_nodes` directory:
+Clone this repository into your ComfyUI `custom_nodes` directory:
 
 ```bash
 cd ComfyUI/custom_nodes
 git clone https://github.com/RedysDump/ComfyUI-Tab-Manager.git
 ```
 
-Restart ComfyUI, then refresh the browser (`Ctrl + F5`). The **+ Group** button and a settings gear will appear in the top workflow tab bar.
+Alternatively, extract the downloadable release ZIP to create `ComfyUI/custom_nodes/ComfyUI-Tab-Manager/` with `__init__.py`, `server_storage.py`, and `web/` inside. Restart ComfyUI and hard-refresh the browser.
 
-If you've installed an older version under a different folder name (such as `ComfyUI-ChromeTabGroups`), remove that older copy before starting ComfyUI to avoid loading the extension twice.
+If an older copy exists under another folder name (for example `ComfyUI-ChromeTabGroups`), disable or remove the duplicate *after making a backup* so the extension is not loaded twice.
 
 ## How to use
 
@@ -81,56 +84,50 @@ If you've installed an older version under a different folder name (such as `Com
 | --- | --- |
 | Create a group | Click **+ Group** |
 | Change the + Group button color | Right-click **+ Group** |
-| Add a subgroup | Right-click a group → **Add Subgroup** |
-| Edit a group | Right-click its header → **Customize Group** |
-| Expand or collapse a group | Click the group header |
-| Reorder or nest groups | Drag a group before, after or onto another group |
-| Move a subgroup to the main bar | Group menu → **Top Level** |
-| Move a workflow to another group | Hover over its tab → **⋯** → choose a group |
-| Edit a workflow tab's appearance | Workflow tab menu → **Customize Tab** |
-| Open the global Customize Themes | Settings gear → **Customize Themes** |
-| Apply a theme | Choose whether to style tabs, groups or both |
-| Save or load a custom theme | Customize Themes → **Save as JSON Preset** / **Import JSON** |
-| Export/import your layout | Settings gear → **Layout Storage & Backup** |
-| Restore saved workflow tabs | Settings gear → **Restore Saved Workflow Tabs** |
+| Add a subgroup | Open the group menu → **Add Subgroup** |
+| Customize a group | Open its menu → **Customize Group** |
+| Collapse or expand a group | Click its chevron |
+| Reorder groups or workflows | Drag to the intended position; drop into supported group targets |
+| Move one item with the keyboard | Ctrl-click the tab/group, use Left/Right, Escape to exit |
+| Customize a workflow tab | Workflow tab menu → **Customize Tab** |
+| Customize global appearance | Open settings → **Customize Themes**; watch changes on the actual bar |
+| Back up or import a layout | **Tab Manager Settings** → **Layout Backup** |
+| Restore previously saved tabs | **Tab Manager Settings** → **Workflow Tab Recovery** |
+| Save multiple new or changed workflows | **Workflow Tab Recovery** → **Save All Workflows** |
+| Check server storage | **Tab Manager Settings** → **Server Tools** |
 
-Deleting a group does **not** delete its workflow files. Nested subgroups are preserved and moved up one level.
+Deleting a group does not delete ComfyUI workflow files. Do not confuse a group action with ComfyUI's own workflow-file operations.
 
-## Layout storage and backups
+## Layout and workflow safety
 
-Your layout is saved in the selected ComfyUI user directory, typically:
+Layout data is stored in the ComfyUI user directory, typically:
 
 ```text
 ComfyUI/user/default/ComfyUI-Tab-Manager/settings.json
 ```
 
-A previous settings backup is also retained on the server. Browser storage acts as a fallback if the server is temporarily unavailable.
+The exact location varies with your ComfyUI user profile. Group organization, appearance settings, and saved workflow path references can be exported, but **layout JSON does not include the contents of workflow JSON files**. Back up workflow files separately.
 
-Browsers connected to the **same ComfyUI server and user profile** can share the saved layout. If changes from different browsers conflict, the **Layout Storage & Backup** menu provides options to reload the server layout or apply the current layout to the server.
+**Save Current Open Tabs for Restore** and **Restore Saved Workflow Tabs** work with paths of already saved workflows. They cannot recreate deleted workflow files or invent a path for an unsaved draft. **Save All Workflows** explicitly invokes ComfyUI's native workflow-saving behavior and follows native prompts. ComfyUI remains responsible for workflow content and canvas state.
 
-**Export Layout (.json)** saves your group structure, appearance settings and references to saved workflows. It does **not** include the actual workflow JSON files. Back up those workflow files separately.
-
-Your tab layout is stored locally in your ComfyUI environment, not uploaded to a third-party service by this extension.
-
-## Restoring workflow tabs
-
-Use **Save Current Open Tabs for Restore** and **Restore Saved Workflow Tabs** from the settings gear to reopen previously saved workflow tabs. The extension uses ComfyUI's supported background-opening functionality where available. Workflows that can no longer be found are skipped.
-
-This feature restores tab references, not deleted or unsaved workflow files.
+Offline layout edits are retained locally until reconnection. When server revisions conflict, use the presented conflict-resolution actions rather than assuming the newest change silently wins.
 
 ## Compatibility and troubleshooting
 
-ComfyUI Tab Manager is designed for the modern ComfyUI **top workflow tab bar**. Version 1.1.1 has been tested with **ComfyUI Frontend 1.55.18** and **1.59.0**. Other frontend versions and extensions may behave differently.
+ComfyUI frontend internals change between releases. Local automated frontend-bundle checks have covered 1.55.14, 1.55.18, and 1.59.0; these checks are not a blanket guarantee for all installed ComfyUI combinations. Keep your ComfyUI installation and the extension updated.
 
-- **Can't see + Group?** Enable the top workflow tab bar, restart ComfyUI and hard-refresh the browser (`Ctrl + F5`).
-- **Duplicate tabs or buttons?** Check for duplicate installations inside `custom_nodes`.
-- **Groups look outdated?** Confirm that you're connected to the expected ComfyUI server and user profile; check **Layout Storage & Backup**.
-- **Storage conflict?** Choose to reload the saved server layout or apply your current layout through the storage menu.
-- **Uninstalling:** Stop ComfyUI, remove `ComfyUI-Tab-Manager` from `custom_nodes`, then restart and refresh. Your original workflow files are unaffected.
+- **No + Group button?** Ensure ComfyUI's top workflow tab bar is enabled, restart ComfyUI, and hard-refresh the browser (`Ctrl + F5`).
+- **Duplicate controls?** Check for multiple copies of Tab Manager in `custom_nodes`.
+- **Layout looks different?** Confirm the selected ComfyUI server and user profile, then inspect **Layout Backup** and **Server Tools**.
+- **Unsaved canvas changes?** Use ComfyUI's native save operations; tab organization is not a replacement for saving workflow files.
+- **Uninstalling:** Stop ComfyUI, remove the extension directory, restart, and refresh. Your workflow JSON files remain managed by ComfyUI.
 
-The extension does not edit, rename, move or delete your workflow JSON files. Native ComfyUI tab operations remain in control of opening and closing workflows; mass-close actions are hidden in the grouped view for safety.
+## Acknowledgements
+
+Thanks to [@hulkx07](https://github.com/hulkx07) for raising the frontend compatibility issue and proposing a fix in [PR #3](https://github.com/RedysDump/ComfyUI-Tab-Manager/pull/3), and for suggesting the unsaved-workflow indicator in [PR #4](https://github.com/RedysDump/ComfyUI-Tab-Manager/pull/4). The configurable indicator system was developed separately; this credit does not imply PR #4 code was merged.
+
+Thanks to [@thevegit01-sys](https://github.com/thevegit01-sys) for requesting workflow reordering within groups in [Issue #6](https://github.com/RedysDump/ComfyUI-Tab-Manager/issues/6).
 
 ## License
 
 Released under the [MIT License](LICENSE).
-
